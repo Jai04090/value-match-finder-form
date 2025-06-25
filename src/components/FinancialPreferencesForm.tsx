@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,7 +47,9 @@ const FinancialPreferencesForm = () => {
     'Mennonite',
     'Islam',
     'Jewish',
-    'Hindu'
+    'Hindu',
+    'Sharia-Compliant (Interest-Free Banking)',
+    'Other'
   ];
 
   const militaryBranches = [
