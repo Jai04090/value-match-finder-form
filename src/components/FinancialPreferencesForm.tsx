@@ -43,8 +43,9 @@ const FinancialPreferencesForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('Form submission started');
-    console.log('Form data:', formData);
+    console.log('=== FORM SUBMISSION DEBUG START ===');
+    console.log('Form submission started at:', new Date().toISOString());
+    console.log('Raw form data:', JSON.stringify(formData, null, 2));
     
     if (isSubmitting) {
       console.log('Already submitting, preventing duplicate submission');
@@ -54,23 +55,27 @@ const FinancialPreferencesForm = () => {
     setIsSubmitting(true);
     
     try {
-      // Test Supabase connection first
+      // Test Supabase connection first with more detailed logging
       console.log('Testing Supabase connection...');
+      console.log('Supabase URL:', supabase.supabaseUrl);
+      console.log('Supabase Key (first 20 chars):', supabase.supabaseKey.substring(0, 20) + '...');
+      
       const { data: testData, error: testError } = await supabase
         .from('form_submissions')
         .select('count(*)', { count: 'exact', head: true });
       
       if (testError) {
         console.error('Supabase connection test failed:', testError);
+        console.error('Error details:', JSON.stringify(testError, null, 2));
         throw new Error(`Database connection failed: ${testError.message}`);
       }
       
-      console.log('Supabase connection successful');
+      console.log('Supabase connection successful. Current row count:', testData);
 
       // Sanitize form data
       console.log('Sanitizing form data...');
       const sanitizedData = sanitizeFormData(formData);
-      console.log('Sanitized data:', sanitizedData);
+      console.log('Sanitized data:', JSON.stringify(sanitizedData, null, 2));
       
       // Validate form data
       console.log('Validating form data...');
@@ -84,8 +89,10 @@ const FinancialPreferencesForm = () => {
         });
         return;
       }
+      console.log('Validation passed successfully');
 
-      // Prepare data for database insertion
+      // Prepare data for database insertion with detailed logging
+      console.log('Preparing data for database insertion...');
       const submissionData = {
         current_financial_institution: sanitizedData.currentFinancialInstitution || null,
         looking_for: sanitizedData.lookingFor || null,
@@ -102,28 +109,45 @@ const FinancialPreferencesForm = () => {
         user_agent: navigator.userAgent
       };
 
-      console.log('Prepared submission data:', submissionData);
+      console.log('Final submission data for database:', JSON.stringify(submissionData, null, 2));
+      console.log('Data types check:');
+      Object.entries(submissionData).forEach(([key, value]) => {
+        console.log(`  ${key}: ${typeof value} = ${value}`);
+      });
 
-      // Insert data into Supabase
-      console.log('Inserting data into Supabase...');
-      const { data, error } = await supabase
+      // Insert data into Supabase with detailed error handling
+      console.log('Attempting to insert data into Supabase...');
+      console.log('Table name: form_submissions');
+      
+      const insertResult = await supabase
         .from('form_submissions')
         .insert([submissionData])
         .select();
 
-      console.log('Supabase response:', { data, error });
+      console.log('Raw Supabase response:', JSON.stringify(insertResult, null, 2));
+      
+      const { data, error } = insertResult;
 
       if (error) {
-        console.error('Supabase insertion error:', error);
+        console.error('Supabase insertion error occurred:');
+        console.error('Error message:', error.message);
+        console.error('Error details:', error.details);
+        console.error('Error hint:', error.hint);
+        console.error('Error code:', error.code);
+        console.error('Full error object:', JSON.stringify(error, null, 2));
         throw new Error(`Failed to save form submission: ${error.message}`);
       }
 
       if (!data || data.length === 0) {
-        console.error('No data returned from insertion');
+        console.error('No data returned from insertion - this is unexpected');
+        console.error('Insert result was:', insertResult);
         throw new Error('No data was returned after insertion');
       }
 
-      console.log('Data successfully inserted:', data);
+      console.log('SUCCESS: Data successfully inserted into database!');
+      console.log('Inserted data:', JSON.stringify(data, null, 2));
+      console.log('Number of rows inserted:', data.length);
+      console.log('New record ID:', data[0].id);
 
       // Filter out empty string values for cleaner logging
       const cleanedData = Object.entries(sanitizedData).reduce((acc, [key, value]) => {
@@ -142,6 +166,7 @@ const FinancialPreferencesForm = () => {
       secureLog.info('Submission saved to database with ID:', data?.[0]?.id);
 
       // Reset form after successful submission
+      console.log('Resetting form data...');
       setFormData({
         currentFinancialInstitution: '',
         lookingFor: '',
@@ -161,9 +186,18 @@ const FinancialPreferencesForm = () => {
         description: `Your preferences have been saved securely to our database. Submission ID: ${data[0].id}`
       });
 
-      console.log('Form submission completed successfully');
+      console.log('Form submission completed successfully at:', new Date().toISOString());
+      console.log('=== FORM SUBMISSION DEBUG END ===');
     } catch (error) {
-      console.error('Form submission error:', error);
+      console.error('=== FORM SUBMISSION ERROR ===');
+      console.error('Error occurred at:', new Date().toISOString());
+      console.error('Error type:', typeof error);
+      console.error('Error instanceof Error:', error instanceof Error);
+      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      console.error('Full error object:', error);
+      console.error('=== END FORM SUBMISSION ERROR ===');
+      
       secureLog.error('Form submission error', error);
       toast({
         title: "Submission Error",
@@ -171,6 +205,7 @@ const FinancialPreferencesForm = () => {
         variant: "destructive"
       });
     } finally {
+      console.log('Setting isSubmitting to false...');
       setIsSubmitting(false);
     }
   };
