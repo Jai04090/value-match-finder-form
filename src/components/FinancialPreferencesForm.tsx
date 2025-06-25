@@ -43,40 +43,17 @@ const FinancialPreferencesForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('Form submission started');
-    console.log('Form data:', formData);
-    
-    if (isSubmitting) {
-      console.log('Already submitting, preventing duplicate submission');
-      return;
-    }
+    if (isSubmitting) return;
     
     setIsSubmitting(true);
     
     try {
-      // Test Supabase connection first
-      console.log('Testing Supabase connection...');
-      const { data: testData, error: testError } = await supabase
-        .from('form_submissions')
-        .select('count(*)', { count: 'exact', head: true });
-      
-      if (testError) {
-        console.error('Supabase connection test failed:', testError);
-        throw new Error(`Database connection failed: ${testError.message}`);
-      }
-      
-      console.log('Supabase connection successful');
-
       // Sanitize form data
-      console.log('Sanitizing form data...');
       const sanitizedData = sanitizeFormData(formData);
-      console.log('Sanitized data:', sanitizedData);
       
       // Validate form data
-      console.log('Validating form data...');
       const errors = validateForm(sanitizedData);
       if (errors.length > 0) {
-        console.error('Validation errors:', errors);
         toast({
           title: "Validation Error",
           description: errors.join(' '),
@@ -102,28 +79,16 @@ const FinancialPreferencesForm = () => {
         user_agent: navigator.userAgent
       };
 
-      console.log('Prepared submission data:', submissionData);
-
       // Insert data into Supabase
-      console.log('Inserting data into Supabase...');
       const { data, error } = await supabase
         .from('form_submissions')
         .insert([submissionData])
         .select();
 
-      console.log('Supabase response:', { data, error });
-
       if (error) {
-        console.error('Supabase insertion error:', error);
-        throw new Error(`Failed to save form submission: ${error.message}`);
+        console.error('Supabase error:', error);
+        throw new Error('Failed to save form submission');
       }
-
-      if (!data || data.length === 0) {
-        console.error('No data returned from insertion');
-        throw new Error('No data was returned after insertion');
-      }
-
-      console.log('Data successfully inserted:', data);
 
       // Filter out empty string values for cleaner logging
       const cleanedData = Object.entries(sanitizedData).reduce((acc, [key, value]) => {
@@ -158,16 +123,13 @@ const FinancialPreferencesForm = () => {
 
       toast({
         title: "Form Submitted Successfully",
-        description: `Your preferences have been saved securely to our database. Submission ID: ${data[0].id}`
+        description: "Your preferences have been saved securely to our database."
       });
-
-      console.log('Form submission completed successfully');
     } catch (error) {
-      console.error('Form submission error:', error);
       secureLog.error('Form submission error', error);
       toast({
         title: "Submission Error",
-        description: error instanceof Error ? error.message : "An error occurred while submitting the form. Please try again.",
+        description: "An error occurred while submitting the form. Please try again.",
         variant: "destructive"
       });
     } finally {
