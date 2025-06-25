@@ -6,7 +6,6 @@ import { useToast } from '@/hooks/use-toast';
 import { FormData } from '@/types/formTypes';
 import { validateForm, sanitizeFormData } from '@/utils/formValidation';
 import { secureLog, createFormSubmissionSummary } from '@/utils/secureLogging';
-import { supabase } from '@/integrations/supabase/client';
 import BasicInformationSection from '@/components/form-sections/BasicInformationSection';
 import ReligiousPreferencesSection from '@/components/form-sections/ReligiousPreferencesSection';
 import MilitaryServiceSection from '@/components/form-sections/MilitaryServiceSection';
@@ -62,35 +61,7 @@ const FinancialPreferencesForm = () => {
         return;
       }
 
-      // Prepare data for database insertion
-      const submissionData = {
-        current_financial_institution: sanitizedData.currentFinancialInstitution || null,
-        looking_for: sanitizedData.lookingFor || null,
-        religious_organization: sanitizedData.religiousOrganization || null,
-        sharia_compliant: sanitizedData.shariaCompliant,
-        current_employer: sanitizedData.currentEmployer || null,
-        student_or_alumni: sanitizedData.studentOrAlumni || null,
-        current_or_former_military: sanitizedData.currentOrFormerMilitary || null,
-        military_branch: sanitizedData.militaryBranch || null,
-        environmental_initiatives: sanitizedData.environmentalInitiatives,
-        diversity_equity_inclusion: sanitizedData.diversityEquityInclusion,
-        religion: sanitizedData.religion || null,
-        submission_ip: null, // Could be populated server-side if needed
-        user_agent: navigator.userAgent
-      };
-
-      // Insert data into Supabase
-      const { data, error } = await supabase
-        .from('form_submissions')
-        .insert([submissionData])
-        .select();
-
-      if (error) {
-        console.error('Supabase error:', error);
-        throw new Error('Failed to save form submission');
-      }
-
-      // Filter out empty string values for cleaner logging
+      // Filter out empty string values for cleaner output
       const cleanedData = Object.entries(sanitizedData).reduce((acc, [key, value]) => {
         if (typeof value === 'string' && value.trim() !== '') {
           acc[key] = value;
@@ -104,26 +75,10 @@ const FinancialPreferencesForm = () => {
       const summary = createFormSubmissionSummary(cleanedData);
       secureLog.formSubmission(summary);
       secureLog.info('Form Data (Development Only)', cleanedData);
-      secureLog.info('Submission saved to database with ID:', data?.[0]?.id);
-
-      // Reset form after successful submission
-      setFormData({
-        currentFinancialInstitution: '',
-        lookingFor: '',
-        religiousOrganization: '',
-        shariaCompliant: false,
-        currentEmployer: '',
-        studentOrAlumni: '',
-        currentOrFormerMilitary: '',
-        militaryBranch: '',
-        environmentalInitiatives: false,
-        diversityEquityInclusion: false,
-        religion: ''
-      });
 
       toast({
         title: "Form Submitted Successfully",
-        description: "Your preferences have been saved securely to our database."
+        description: "Your preferences have been recorded securely."
       });
     } catch (error) {
       secureLog.error('Form submission error', error);

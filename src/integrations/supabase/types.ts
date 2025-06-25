@@ -9,60 +9,7 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      form_submissions: {
-        Row: {
-          created_at: string
-          current_employer: string | null
-          current_financial_institution: string | null
-          current_or_former_military: string | null
-          diversity_equity_inclusion: boolean | null
-          environmental_initiatives: boolean | null
-          id: string
-          looking_for: string | null
-          military_branch: string | null
-          religion: string | null
-          religious_organization: string | null
-          sharia_compliant: boolean | null
-          student_or_alumni: string | null
-          submission_ip: string | null
-          user_agent: string | null
-        }
-        Insert: {
-          created_at?: string
-          current_employer?: string | null
-          current_financial_institution?: string | null
-          current_or_former_military?: string | null
-          diversity_equity_inclusion?: boolean | null
-          environmental_initiatives?: boolean | null
-          id?: string
-          looking_for?: string | null
-          military_branch?: string | null
-          religion?: string | null
-          religious_organization?: string | null
-          sharia_compliant?: boolean | null
-          student_or_alumni?: string | null
-          submission_ip?: string | null
-          user_agent?: string | null
-        }
-        Update: {
-          created_at?: string
-          current_employer?: string | null
-          current_financial_institution?: string | null
-          current_or_former_military?: string | null
-          diversity_equity_inclusion?: boolean | null
-          environmental_initiatives?: boolean | null
-          id?: string
-          looking_for?: string | null
-          military_branch?: string | null
-          religion?: string | null
-          religious_organization?: string | null
-          sharia_compliant?: boolean | null
-          student_or_alumni?: string | null
-          submission_ip?: string | null
-          user_agent?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Views: {
       [_ in never]: never
