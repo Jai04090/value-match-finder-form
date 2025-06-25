@@ -28,7 +28,18 @@ const ReligiousPreferencesSection: React.FC<ReligiousPreferencesSectionProps> = 
     'Other'
   ];
 
-  const religions = ['Catholic', 'Evangelical', 'Islam', 'Hindu', 'Jewish', 'Other'];
+  const religions = [
+    'Catholic',
+    'Evangelical',
+    'Pentacostal/ Assembly of God',
+    'Lutheran',
+    'Seventh-day Adventist',
+    'Mennonite',
+    'Islam',
+    'Jewish',
+    'Hindu',
+    'Other'
+  ];
 
   return (
     <div className="space-y-6">
