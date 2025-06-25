@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { FormData } from '@/types/formTypes';
 import { validateForm, sanitizeFormData } from '@/utils/formValidation';
 import { secureLog, createFormSubmissionSummary } from '@/utils/secureLogging';
+import { supabase } from '@/integrations/supabase/client';
 import BasicInformationSection from '@/components/form-sections/BasicInformationSection';
 import ReligiousPreferencesSection from '@/components/form-sections/ReligiousPreferencesSection';
 import MilitaryServiceSection from '@/components/form-sections/MilitaryServiceSection';
@@ -61,25 +62,58 @@ const FinancialPreferencesForm = () => {
         return;
       }
 
-      // Filter out empty string values for cleaner output
-      const cleanedData = Object.entries(sanitizedData).reduce((acc, [key, value]) => {
-        if (typeof value === 'string' && value.trim() !== '') {
-          acc[key] = value;
-        } else if (typeof value === 'boolean' && value) {
-          acc[key] = value;
-        }
-        return acc;
-      }, {} as any);
+      // Prepare data for database insertion
+      const submissionData = {
+        current_financial_institution: sanitizedData.currentFinancialInstitution || null,
+        looking_for: sanitizedData.lookingFor || null,
+        current_employer: sanitizedData.currentEmployer || null,
+        student_or_alumni: sanitizedData.studentOrAlumni || null,
+        religious_organization: sanitizedData.religiousOrganization || null,
+        sharia_compliant: sanitizedData.shariaCompliant,
+        religion: sanitizedData.religion || null,
+        current_or_former_military: sanitizedData.currentOrFormerMilitary || null,
+        military_branch: sanitizedData.militaryBranch || null,
+        environmental_initiatives: sanitizedData.environmentalInitiatives,
+        diversity_equity_inclusion: sanitizedData.diversityEquityInclusion,
+        submission_ip: null, // Could be populated server-side for privacy
+        user_agent: navigator.userAgent
+      };
 
-      // Secure logging - only log summary in production
-      const summary = createFormSubmissionSummary(cleanedData);
+      // Save to Supabase
+      const { error } = await supabase
+        .from('form_submissions')
+        .insert([submissionData]);
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw new Error('Failed to save form submission');
+      }
+
+      // Log success (for development/debugging)
+      const summary = createFormSubmissionSummary(sanitizedData);
       secureLog.formSubmission(summary);
-      secureLog.info('Form Data (Development Only)', cleanedData);
+      secureLog.info('Form Data saved to database successfully');
 
       toast({
         title: "Form Submitted Successfully",
         description: "Your preferences have been recorded securely."
       });
+
+      // Reset form after successful submission
+      setFormData({
+        currentFinancialInstitution: '',
+        lookingFor: '',
+        religiousOrganization: '',
+        shariaCompliant: false,
+        currentEmployer: '',
+        studentOrAlumni: '',
+        currentOrFormerMilitary: '',
+        militaryBranch: '',
+        environmentalInitiatives: false,
+        diversityEquityInclusion: false,
+        religion: ''
+      });
+
     } catch (error) {
       secureLog.error('Form submission error', error);
       toast({
