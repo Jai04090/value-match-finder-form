@@ -3,6 +3,7 @@ import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Building2, GraduationCap } from 'lucide-react';
 import { FormData } from '@/types/formTypes';
 
 interface BasicInformationSectionProps {
@@ -18,7 +19,8 @@ const BasicInformationSection: React.FC<BasicInformationSectionProps> = ({
     <div className="space-y-6">
       {/* Current Financial Institution */}
       <div className="space-y-2">
-        <Label htmlFor="currentFinancialInstitution" className="text-sm font-medium">
+        <Label htmlFor="currentFinancialInstitution" className="text-sm font-medium flex items-center">
+          <Building2 className="h-5 w-5 text-blue-600 mr-2" />
           Current Financial Institution
         </Label>
         <Input 
@@ -47,7 +49,8 @@ const BasicInformationSection: React.FC<BasicInformationSectionProps> = ({
 
       {/* Current Employer */}
       <div className="space-y-2">
-        <Label htmlFor="currentEmployer" className="text-sm font-medium">
+        <Label htmlFor="currentEmployer" className="text-sm font-medium flex items-center">
+          <Building2 className="h-5 w-5 text-blue-600 mr-2" />
           Current Employer
         </Label>
         <Input 
@@ -62,7 +65,8 @@ const BasicInformationSection: React.FC<BasicInformationSectionProps> = ({
 
       {/* Student or Alumni */}
       <div className="space-y-2">
-        <Label htmlFor="studentOrAlumni" className="text-sm font-medium">
+        <Label htmlFor="studentOrAlumni" className="text-sm font-medium flex items-center">
+          <GraduationCap className="h-5 w-5 text-blue-600 mr-2" />
           Student or Alumni
         </Label>
         <Input 

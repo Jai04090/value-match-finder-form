@@ -3,6 +3,7 @@ import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Church, Scale, Target } from 'lucide-react';
 import { FormData } from '@/types/formTypes';
 
 interface ReligiousPreferencesSectionProps {
@@ -45,7 +46,8 @@ const ReligiousPreferencesSection: React.FC<ReligiousPreferencesSectionProps> = 
     <div className="space-y-6">
       {/* Religious Organization */}
       <div className="space-y-2">
-        <Label htmlFor="religiousOrganization" className="text-sm font-medium">
+        <Label htmlFor="religiousOrganization" className="text-sm font-medium flex items-center">
+          <Church className="h-5 w-5 text-blue-600 mr-2" />
           Religious Organization
         </Label>
         <Select 
@@ -72,14 +74,16 @@ const ReligiousPreferencesSection: React.FC<ReligiousPreferencesSectionProps> = 
           checked={formData.shariaCompliant}
           onCheckedChange={(checked) => onInputChange('shariaCompliant', checked as boolean)}
         />
-        <Label htmlFor="shariaCompliant" className="text-sm font-medium cursor-pointer">
+        <Label htmlFor="shariaCompliant" className="text-sm font-medium cursor-pointer flex items-center">
+          <Target className="h-5 w-5 text-blue-600 mr-2" />
           Sharia-Compliant Banking (Interest-Free)
         </Label>
       </div>
 
       {/* Religion */}
       <div className="space-y-2">
-        <Label htmlFor="religion" className="text-sm font-medium">
+        <Label htmlFor="religion" className="text-sm font-medium flex items-center">
+          <Scale className="h-5 w-5 text-blue-600 mr-2" />
           Religion
         </Label>
         <Select 

@@ -2,6 +2,7 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Shield } from 'lucide-react';
 import { FormData } from '@/types/formTypes';
 
 interface MilitaryServiceSectionProps {
@@ -19,7 +20,8 @@ const MilitaryServiceSection: React.FC<MilitaryServiceSectionProps> = ({
     <div className="space-y-6">
       {/* Military Service */}
       <div className="space-y-2">
-        <Label htmlFor="currentOrFormerMilitary" className="text-sm font-medium">
+        <Label htmlFor="currentOrFormerMilitary" className="text-sm font-medium flex items-center">
+          <Shield className="h-5 w-5 text-blue-600 mr-2" />
           Current or Former Military
         </Label>
         <Select 
@@ -39,7 +41,8 @@ const MilitaryServiceSection: React.FC<MilitaryServiceSectionProps> = ({
       {/* Military Branch - Conditional */}
       {formData.currentOrFormerMilitary === 'Yes' && (
         <div className="space-y-2 animate-in slide-in-from-top-2 duration-200">
-          <Label htmlFor="militaryBranch" className="text-sm font-medium">
+          <Label htmlFor="militaryBranch" className="text-sm font-medium flex items-center">
+            <Shield className="h-5 w-5 text-blue-600 mr-2" />
             Military Branch
           </Label>
           <Select 
