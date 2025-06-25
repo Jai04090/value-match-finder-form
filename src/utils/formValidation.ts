@@ -1,10 +1,13 @@
 
 import { z } from 'zod';
 import { FormData } from '@/types/formTypes';
-import { sanitizeInput, validateInputLength, containsSuspiciousPatterns } from './inputSanitization';
+import { sanitizeInput, validateInputLength, containsSuspiciousPatterns, validateEmail } from './inputSanitization';
 
 // Zod schema for comprehensive validation
 const FormDataSchema = z.object({
+  email: z.string()
+    .email('Please enter a valid email address')
+    .max(254, 'Email address too long'),
   currentFinancialInstitution: z.string()
     .max(200, 'Financial institution name too long')
     .optional()
@@ -54,6 +57,11 @@ export const validateForm = (formData: FormData): string[] => {
     }
   }
 
+  // Additional email validation
+  if (formData.email && !validateEmail(formData.email)) {
+    errors.push('Please enter a valid email address');
+  }
+
   // Security validation for string fields
   Object.entries(formData).forEach(([key, value]) => {
     if (typeof value === 'string' && value.trim() !== '') {
@@ -63,7 +71,7 @@ export const validateForm = (formData: FormData): string[] => {
       }
 
       // Validate length based on field type
-      const maxLength = key === 'lookingFor' ? 1000 : 200;
+      const maxLength = key === 'lookingFor' ? 1000 : key === 'email' ? 254 : 200;
       if (!validateInputLength(value, maxLength)) {
         errors.push(`${key.replace(/([A-Z])/g, ' $1')} is too long`);
       }

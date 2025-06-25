@@ -16,6 +16,7 @@ export type Database = {
           current_financial_institution: string | null
           current_or_former_military: string | null
           diversity_equity_inclusion: boolean | null
+          email: string | null
           environmental_initiatives: boolean | null
           id: string
           looking_for: string | null
@@ -33,6 +34,7 @@ export type Database = {
           current_financial_institution?: string | null
           current_or_former_military?: string | null
           diversity_equity_inclusion?: boolean | null
+          email?: string | null
           environmental_initiatives?: boolean | null
           id?: string
           looking_for?: string | null
@@ -50,6 +52,7 @@ export type Database = {
           current_financial_institution?: string | null
           current_or_former_military?: string | null
           diversity_equity_inclusion?: boolean | null
+          email?: string | null
           environmental_initiatives?: boolean | null
           id?: string
           looking_for?: string | null

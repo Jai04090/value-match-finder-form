@@ -3,7 +3,7 @@ import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Building2, GraduationCap } from 'lucide-react';
+import { Building2, GraduationCap, Mail } from 'lucide-react';
 import { FormData } from '@/types/formTypes';
 
 interface BasicInformationSectionProps {
@@ -17,6 +17,23 @@ const BasicInformationSection: React.FC<BasicInformationSectionProps> = ({
 }) => {
   return (
     <div className="space-y-6">
+      {/* Email Address */}
+      <div className="space-y-2">
+        <Label htmlFor="email" className="text-sm font-medium flex items-center">
+          <Mail className="h-5 w-5 text-blue-600 mr-2" />
+          Email Address *
+        </Label>
+        <Input 
+          id="email" 
+          type="email" 
+          placeholder="Enter your email address" 
+          value={formData.email} 
+          onChange={(e) => onInputChange('email', e.target.value)} 
+          className="w-full" 
+          required
+        />
+      </div>
+
       {/* Current Financial Institution */}
       <div className="space-y-2">
         <Label htmlFor="currentFinancialInstitution" className="text-sm font-medium flex items-center">

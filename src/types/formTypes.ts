@@ -1,5 +1,6 @@
 
 export interface FormData {
+  email: string;
   currentFinancialInstitution: string;
   lookingFor: string;
   religiousOrganization: string;

@@ -16,6 +16,7 @@ const FinancialPreferencesForm = () => {
   const { toast } = useToast();
   
   const [formData, setFormData] = useState<FormData>({
+    email: '',
     currentFinancialInstitution: '',
     lookingFor: '',
     religiousOrganization: '',
@@ -64,6 +65,7 @@ const FinancialPreferencesForm = () => {
 
       // Prepare data for database insertion
       const submissionData = {
+        email: sanitizedData.email || null,
         current_financial_institution: sanitizedData.currentFinancialInstitution || null,
         looking_for: sanitizedData.lookingFor || null,
         current_employer: sanitizedData.currentEmployer || null,
@@ -101,6 +103,7 @@ const FinancialPreferencesForm = () => {
 
       // Reset form after successful submission
       setFormData({
+        email: '',
         currentFinancialInstitution: '',
         lookingFor: '',
         religiousOrganization: '',
