@@ -48,16 +48,12 @@ const FinancialPreferencesForm = () => {
     setIsSubmitting(true);
     
     try {
-      console.log('Starting form submission...', formData);
-      
       // Sanitize form data
       const sanitizedData = sanitizeFormData(formData);
-      console.log('Data sanitized:', sanitizedData);
       
       // Validate form data
       const errors = validateForm(sanitizedData);
       if (errors.length > 0) {
-        console.log('Validation errors:', errors);
         toast({
           title: "Validation Error",
           description: errors.join(' '),
@@ -76,8 +72,6 @@ const FinancialPreferencesForm = () => {
         return acc;
       }, {} as any);
 
-      console.log('Cleaned data:', cleanedData);
-
       // Prepare data for Supabase insertion
       const submissionData = {
         current_financial_institution: cleanedData.currentFinancialInstitution || null,
@@ -95,8 +89,6 @@ const FinancialPreferencesForm = () => {
         user_agent: navigator.userAgent || null
       };
 
-      console.log('Submission data for Supabase:', submissionData);
-
       // Insert data into Supabase
       const { data, error } = await supabase
         .from('form_submissions')
@@ -113,8 +105,6 @@ const FinancialPreferencesForm = () => {
         });
         return;
       }
-
-      console.log('Successfully inserted data:', data);
 
       // Secure logging - only log summary in production
       const summary = createFormSubmissionSummary(cleanedData);
