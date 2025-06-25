@@ -48,12 +48,16 @@ const FinancialPreferencesForm = () => {
     setIsSubmitting(true);
     
     try {
+      console.log('Starting form submission...', formData);
+      
       // Sanitize form data
       const sanitizedData = sanitizeFormData(formData);
+      console.log('Data sanitized:', sanitizedData);
       
       // Validate form data
       const errors = validateForm(sanitizedData);
       if (errors.length > 0) {
+        console.log('Validation errors:', errors);
         toast({
           title: "Validation Error",
           description: errors.join(' '),
@@ -72,6 +76,8 @@ const FinancialPreferencesForm = () => {
         return acc;
       }, {} as any);
 
+      console.log('Cleaned data:', cleanedData);
+
       // Prepare data for Supabase insertion
       const submissionData = {
         current_financial_institution: cleanedData.currentFinancialInstitution || null,
@@ -89,6 +95,8 @@ const FinancialPreferencesForm = () => {
         user_agent: navigator.userAgent || null
       };
 
+      console.log('Submission data for Supabase:', submissionData);
+
       // Insert data into Supabase
       const { data, error } = await supabase
         .from('form_submissions')
@@ -100,11 +108,13 @@ const FinancialPreferencesForm = () => {
         console.error('Supabase insertion error:', error);
         toast({
           title: "Submission Error",
-          description: "Failed to submit your preferences. Please try again.",
+          description: `Failed to submit your preferences: ${error.message}`,
           variant: "destructive"
         });
         return;
       }
+
+      console.log('Successfully inserted data:', data);
 
       // Secure logging - only log summary in production
       const summary = createFormSubmissionSummary(cleanedData);
@@ -136,7 +146,7 @@ const FinancialPreferencesForm = () => {
       secureLog.error('Form submission error', error);
       toast({
         title: "Submission Error",
-        description: "An unexpected error occurred. Please try again.",
+        description: `An unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive"
       });
     } finally {
