@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { FormData } from '@/types/formTypes';
 import { validateForm, sanitizeFormData } from '@/utils/formValidation';
 import { secureLog, createFormSubmissionSummary } from '@/utils/secureLogging';
+import { supabase } from '@/integrations/supabase/client';
 import BasicInformationSection from '@/components/form-sections/BasicInformationSection';
 import ReligiousPreferencesSection from '@/components/form-sections/ReligiousPreferencesSection';
 import MilitaryServiceSection from '@/components/form-sections/MilitaryServiceSection';
@@ -61,30 +62,81 @@ const FinancialPreferencesForm = () => {
         return;
       }
 
-      // Filter out empty string values for cleaner output
+      // Filter out empty string values for cleaner database storage
       const cleanedData = Object.entries(sanitizedData).reduce((acc, [key, value]) => {
         if (typeof value === 'string' && value.trim() !== '') {
           acc[key] = value;
-        } else if (typeof value === 'boolean' && value) {
+        } else if (typeof value === 'boolean') {
           acc[key] = value;
         }
         return acc;
       }, {} as any);
 
+      // Prepare data for Supabase insertion
+      const submissionData = {
+        current_financial_institution: cleanedData.currentFinancialInstitution || null,
+        looking_for: cleanedData.lookingFor || null,
+        religious_organization: cleanedData.religiousOrganization || null,
+        sharia_compliant: cleanedData.shariaCompliant || false,
+        current_employer: cleanedData.currentEmployer || null,
+        student_or_alumni: cleanedData.studentOrAlumni || null,
+        current_or_former_military: cleanedData.currentOrFormerMilitary || null,
+        military_branch: cleanedData.militaryBranch || null,
+        environmental_initiatives: cleanedData.environmentalInitiatives || false,
+        diversity_equity_inclusion: cleanedData.diversityEquityInclusion || false,
+        religion: cleanedData.religion || null,
+        submission_ip: null, // Could be added later if needed
+        user_agent: navigator.userAgent || null
+      };
+
+      // Insert data into Supabase
+      const { data, error } = await supabase
+        .from('form_submissions')
+        .insert([submissionData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase insertion error:', error);
+        toast({
+          title: "Submission Error",
+          description: "Failed to submit your preferences. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       // Secure logging - only log summary in production
       const summary = createFormSubmissionSummary(cleanedData);
       secureLog.formSubmission(summary);
-      secureLog.info('Form Data (Development Only)', cleanedData);
+      secureLog.info('Form submitted successfully with ID:', data.id);
+
+      // Reset form after successful submission
+      setFormData({
+        currentFinancialInstitution: '',
+        lookingFor: '',
+        religiousOrganization: '',
+        shariaCompliant: false,
+        currentEmployer: '',
+        studentOrAlumni: '',
+        currentOrFormerMilitary: '',
+        militaryBranch: '',
+        environmentalInitiatives: false,
+        diversityEquityInclusion: false,
+        religion: ''
+      });
 
       toast({
         title: "Form Submitted Successfully",
-        description: "Your preferences have been recorded securely."
+        description: "Your preferences have been recorded securely. Thank you!"
       });
+
     } catch (error) {
+      console.error('Form submission error:', error);
       secureLog.error('Form submission error', error);
       toast({
         title: "Submission Error",
-        description: "An error occurred while submitting the form. Please try again.",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive"
       });
     } finally {
