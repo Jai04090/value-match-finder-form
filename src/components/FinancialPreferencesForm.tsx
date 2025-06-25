@@ -55,10 +55,8 @@ const FinancialPreferencesForm = () => {
     setIsSubmitting(true);
     
     try {
-      // Test Supabase connection first with more detailed logging
+      // Test Supabase connection first with simpler logging
       console.log('Testing Supabase connection...');
-      console.log('Supabase URL:', supabase.supabaseUrl);
-      console.log('Supabase Key (first 20 chars):', supabase.supabaseKey.substring(0, 20) + '...');
       
       const { data: testData, error: testError } = await supabase
         .from('form_submissions')
