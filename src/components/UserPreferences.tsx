@@ -19,22 +19,28 @@ interface FormSubmission {
   military_branch: string | null;
   environmental_initiatives: boolean | null;
   diversity_equity_inclusion: boolean | null;
+  religious_organization: string | null;
 }
 
 const UserPreferences = () => {
   const { data: preferences, isLoading, error } = useQuery({
     queryKey: ['userPreferences'],
     queryFn: async () => {
+      console.log('Fetching preferences from form_submissions table...');
       const { data, error } = await supabase
         .from('form_submissions')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(1);
       
+      console.log('Query result:', { data, error });
+      
       if (error) {
+        console.error('Database error:', error);
         throw error;
       }
       
+      console.log('Fetched data:', data);
       return data as FormSubmission[];
     }
   });
@@ -62,18 +68,21 @@ const UserPreferences = () => {
   }
 
   if (error) {
+    console.error('Error in UserPreferences:', error);
     return (
       <div className="min-h-screen bg-gray-50 p-4">
         <div className="max-w-2xl mx-auto">
           <Card>
             <CardContent className="text-center py-8">
-              <p className="text-red-600">Error loading preferences. Please try again.</p>
+              <p className="text-red-600">Error loading preferences: {error.message}</p>
             </CardContent>
           </Card>
         </div>
       </div>
     );
   }
+
+  console.log('Preferences data in component:', preferences);
 
   if (!preferences || preferences.length === 0) {
     return (
@@ -82,6 +91,7 @@ const UserPreferences = () => {
           <Card>
             <CardContent className="text-center py-8">
               <p className="text-gray-600">No preferences found. Please submit your preferences first.</p>
+              <p className="text-sm text-gray-500 mt-2">Debug: Query returned {preferences?.length || 0} results</p>
             </CardContent>
           </Card>
         </div>
@@ -133,6 +143,11 @@ const UserPreferences = () => {
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="font-medium text-gray-700">Religion:</span>
                 <span className="text-gray-600">{formatValue(latestPreference.religion)}</span>
+              </div>
+
+              <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                <span className="font-medium text-gray-700">Religious Organization:</span>
+                <span className="text-gray-600">{formatValue(latestPreference.religious_organization)}</span>
               </div>
               
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
