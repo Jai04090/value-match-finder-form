@@ -26,21 +26,16 @@ const UserPreferences = () => {
   const { data: preferences, isLoading, error } = useQuery({
     queryKey: ['userPreferences'],
     queryFn: async () => {
-      console.log('Fetching preferences from form_submissions table...');
       const { data, error } = await supabase
         .from('form_submissions')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(1);
       
-      console.log('Query result:', { data, error });
-      
       if (error) {
-        console.error('Database error:', error);
         throw error;
       }
       
-      console.log('Fetched data:', data);
       return data as FormSubmission[];
     }
   });
@@ -68,7 +63,6 @@ const UserPreferences = () => {
   }
 
   if (error) {
-    console.error('Error in UserPreferences:', error);
     return (
       <div className="min-h-screen bg-gray-50 p-4">
         <div className="max-w-2xl mx-auto">
@@ -82,8 +76,6 @@ const UserPreferences = () => {
     );
   }
 
-  console.log('Preferences data in component:', preferences);
-
   if (!preferences || preferences.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 p-4">
@@ -91,7 +83,6 @@ const UserPreferences = () => {
           <Card>
             <CardContent className="text-center py-8">
               <p className="text-gray-600">No preferences found. Please submit your preferences first.</p>
-              <p className="text-sm text-gray-500 mt-2">Debug: Query returned {preferences?.length || 0} results</p>
             </CardContent>
           </Card>
         </div>
