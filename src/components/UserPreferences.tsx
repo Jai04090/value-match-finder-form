@@ -1,9 +1,11 @@
-
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 
 interface FormSubmission {
   id: string;
@@ -20,15 +22,29 @@ interface FormSubmission {
   environmental_initiatives: boolean | null;
   diversity_equity_inclusion: boolean | null;
   religious_organization: string | null;
+  user_id: string;
 }
 
 const UserPreferences = () => {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect to auth if not logged in
+  React.useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/auth');
+    }
+  }, [user, authLoading, navigate]);
+
   const { data: preferences, isLoading, error } = useQuery({
-    queryKey: ['userPreferences'],
+    queryKey: ['userPreferences', user?.id],
     queryFn: async () => {
+      if (!user) return [];
+      
       const { data, error } = await supabase
         .from('form_submissions')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(1);
       
@@ -37,8 +53,13 @@ const UserPreferences = () => {
       }
       
       return data as FormSubmission[];
-    }
+    },
+    enabled: !!user
   });
+
+  if (authLoading || !user) {
+    return null; // Will redirect to auth
+  }
 
   if (isLoading) {
     return (
@@ -82,7 +103,10 @@ const UserPreferences = () => {
         <div className="max-w-2xl mx-auto">
           <Card>
             <CardContent className="text-center py-8">
-              <p className="text-gray-600">No preferences found. Please submit your preferences first.</p>
+              <p className="text-gray-600 mb-4">You haven't submitted your preferences yet.</p>
+              <Button onClick={() => navigate('/')}>
+                Submit Your Preferences
+              </Button>
             </CardContent>
           </Card>
         </div>

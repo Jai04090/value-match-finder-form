@@ -1,5 +1,6 @@
-
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -13,10 +14,24 @@ import MilitaryServiceSection from '@/components/form-sections/MilitaryServiceSe
 import ValuesPreferencesSection from '@/components/form-sections/ValuesPreferencesSection';
 
 const FinancialPreferencesForm = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   
+  // Redirect to auth if not logged in
+  React.useEffect(() => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to submit your preferences.",
+        variant: "destructive"
+      });
+      navigate('/auth');
+    }
+  }, [user, navigate, toast]);
+
   const [formData, setFormData] = useState<FormData>({
-    email: '',
+    email: user?.email || '',
     currentFinancialInstitution: '',
     lookingFor: '',
     religiousOrganization: '',
@@ -44,6 +59,15 @@ const FinancialPreferencesForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to submit preferences.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     if (isSubmitting) return;
     
     setIsSubmitting(true);
@@ -65,6 +89,7 @@ const FinancialPreferencesForm = () => {
 
       // Prepare data for database insertion
       const submissionData = {
+        user_id: user.id,
         email: sanitizedData.email || null,
         current_financial_institution: sanitizedData.currentFinancialInstitution || null,
         looking_for: sanitizedData.lookingFor || null,
@@ -77,7 +102,7 @@ const FinancialPreferencesForm = () => {
         military_branch: sanitizedData.militaryBranch || null,
         environmental_initiatives: sanitizedData.environmentalInitiatives,
         diversity_equity_inclusion: sanitizedData.diversityEquityInclusion,
-        submission_ip: null, // Could be populated server-side for privacy
+        submission_ip: null,
         user_agent: navigator.userAgent
       };
 
@@ -101,21 +126,8 @@ const FinancialPreferencesForm = () => {
         description: "Your preferences have been recorded securely."
       });
 
-      // Reset form after successful submission
-      setFormData({
-        email: '',
-        currentFinancialInstitution: '',
-        lookingFor: '',
-        religiousOrganization: '',
-        shariaCompliant: false,
-        currentEmployer: '',
-        studentOrAlumni: '',
-        currentOrFormerMilitary: '',
-        militaryBranch: '',
-        environmentalInitiatives: false,
-        diversityEquityInclusion: false,
-        religion: ''
-      });
+      // Navigate to preferences page
+      navigate('/preferences');
 
     } catch (error) {
       secureLog.error('Form submission error', error);
@@ -128,6 +140,10 @@ const FinancialPreferencesForm = () => {
       setIsSubmitting(false);
     }
   };
+
+  if (!user) {
+    return null; // Will redirect to auth
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
