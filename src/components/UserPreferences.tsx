@@ -1,33 +1,17 @@
+
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-
-interface FormSubmission {
-  id: string;
-  created_at: string;
-  email: string | null;
-  current_financial_institution: string | null;
-  looking_for: string | null;
-  religion: string | null;
-  sharia_compliant: boolean | null;
-  current_employer: string | null;
-  student_or_alumni: string | null;
-  current_or_former_military: string | null;
-  military_branch: string | null;
-  environmental_initiatives: boolean | null;
-  diversity_equity_inclusion: boolean | null;
-  religious_organization: string | null;
-  user_id: string;
-}
+import { useUnifiedUserData } from '@/hooks/useUserData';
+import { Edit, User, Calendar } from 'lucide-react';
 
 const UserPreferences = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const { profile, latestPreferences, isLoading, error, hasPreferences } = useUnifiedUserData();
 
   // Redirect to auth if not logged in
   React.useEffect(() => {
@@ -36,27 +20,6 @@ const UserPreferences = () => {
     }
   }, [user, authLoading, navigate]);
 
-  const { data: preferences, isLoading, error } = useQuery({
-    queryKey: ['userPreferences', user?.id],
-    queryFn: async () => {
-      if (!user) return [];
-      
-      const { data, error } = await supabase
-        .from('form_submissions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      
-      if (error) {
-        throw error;
-      }
-      
-      return data as FormSubmission[];
-    },
-    enabled: !!user
-  });
-
   if (authLoading || !user) {
     return null; // Will redirect to auth
   }
@@ -64,10 +27,11 @@ const UserPreferences = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 p-4">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto space-y-6">
           <Card>
             <CardHeader>
               <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-32" />
             </CardHeader>
             <CardContent className="space-y-4">
               {[...Array(10)].map((_, i) => (
@@ -89,23 +53,13 @@ const UserPreferences = () => {
         <div className="max-w-2xl mx-auto">
           <Card>
             <CardContent className="text-center py-8">
-              <p className="text-red-600">Error loading preferences: {error.message}</p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  if (!preferences || preferences.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-4">
-        <div className="max-w-2xl mx-auto">
-          <Card>
-            <CardContent className="text-center py-8">
-              <p className="text-gray-600 mb-4">You haven't submitted your preferences yet.</p>
-              <Button onClick={() => navigate('/')}>
-                Submit Your Preferences
+              <p className="text-red-600">Error loading your data: {error.message}</p>
+              <Button 
+                onClick={() => window.location.reload()} 
+                className="mt-4"
+                variant="outline"
+              >
+                Try Again
               </Button>
             </CardContent>
           </Card>
@@ -114,7 +68,47 @@ const UserPreferences = () => {
     );
   }
 
-  const latestPreference = preferences[0];
+  if (!hasPreferences) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4">
+        <div className="max-w-2xl mx-auto space-y-6">
+          {/* Profile Summary Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Welcome, {profile?.email || user.email}
+              </CardTitle>
+              <p className="text-sm text-gray-500 flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Member since {new Date(profile?.created_at || user.created_at || '').toLocaleDateString()}
+              </p>
+            </CardHeader>
+          </Card>
+
+          {/* Empty State Card */}
+          <Card>
+            <CardContent className="text-center py-12">
+              <div className="mb-4">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Edit className="h-8 w-8 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  No Preferences Set
+                </h3>
+                <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                  You haven't submitted your financial preferences yet. Let us help you find institutions that align with your values and background.
+                </p>
+              </div>
+              <Button onClick={() => navigate('/')} size="lg">
+                Submit Your Preferences
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   const formatBooleanValue = (value: boolean | null) => {
     if (value === null) return 'Not specified';
@@ -127,77 +121,102 @@ const UserPreferences = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto space-y-6">
+        {/* Profile Header Card */}
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-start">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-2xl">
+                  <User className="h-6 w-6" />
+                  Your Profile & Preferences
+                </CardTitle>
+                <p className="text-sm text-gray-500 flex items-center gap-2 mt-2">
+                  <Calendar className="h-4 w-4" />
+                  Last updated: {new Date(latestPreferences?.created_at || '').toLocaleDateString()}
+                </p>
+              </div>
+              <Button 
+                onClick={() => navigate('/')} 
+                variant="outline" 
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                Edit
+              </Button>
+            </div>
+          </CardHeader>
+        </Card>
+
+        {/* Preferences Details Card */}
         <Card className="bg-white rounded-lg shadow-sm">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-gray-800">
-              Your Financial Preferences
+            <CardTitle className="text-xl font-bold text-gray-800">
+              Financial Preferences Details
             </CardTitle>
-            <p className="text-sm text-gray-500">
-              Submitted on {new Date(latestPreference.created_at).toLocaleDateString()}
-            </p>
           </CardHeader>
           
           <CardContent className="space-y-4">
             <div className="grid gap-4">
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="font-medium text-gray-700">Email:</span>
-                <span className="text-gray-600">{formatValue(latestPreference.email)}</span>
+                <span className="text-gray-600">{formatValue(latestPreferences?.email)}</span>
               </div>
               
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="font-medium text-gray-700">Current Institution:</span>
-                <span className="text-gray-600">{formatValue(latestPreference.current_financial_institution)}</span>
+                <span className="text-gray-600">{formatValue(latestPreferences?.current_financial_institution)}</span>
               </div>
               
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="font-medium text-gray-700">Looking For:</span>
-                <span className="text-gray-600">{formatValue(latestPreference.looking_for)}</span>
+                <span className="text-gray-600">{formatValue(latestPreferences?.looking_for)}</span>
               </div>
               
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="font-medium text-gray-700">Religion:</span>
-                <span className="text-gray-600">{formatValue(latestPreference.religion)}</span>
+                <span className="text-gray-600">{formatValue(latestPreferences?.religion)}</span>
               </div>
 
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="font-medium text-gray-700">Religious Organization:</span>
-                <span className="text-gray-600">{formatValue(latestPreference.religious_organization)}</span>
+                <span className="text-gray-600">{formatValue(latestPreferences?.religious_organization)}</span>
               </div>
               
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="font-medium text-gray-700">Sharia Compliant:</span>
-                <span className="text-gray-600">{formatBooleanValue(latestPreference.sharia_compliant)}</span>
+                <span className="text-gray-600">{formatBooleanValue(latestPreferences?.sharia_compliant)}</span>
               </div>
               
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="font-medium text-gray-700">Current Employer:</span>
-                <span className="text-gray-600">{formatValue(latestPreference.current_employer)}</span>
+                <span className="text-gray-600">{formatValue(latestPreferences?.current_employer)}</span>
               </div>
               
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="font-medium text-gray-700">Student/Alumni:</span>
-                <span className="text-gray-600">{formatValue(latestPreference.student_or_alumni)}</span>
+                <span className="text-gray-600">{formatValue(latestPreferences?.student_or_alumni)}</span>
               </div>
               
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="font-medium text-gray-700">Military Service:</span>
-                <span className="text-gray-600">{formatValue(latestPreference.current_or_former_military)}</span>
+                <span className="text-gray-600">{formatValue(latestPreferences?.current_or_former_military)}</span>
               </div>
               
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="font-medium text-gray-700">Military Branch:</span>
-                <span className="text-gray-600">{formatValue(latestPreference.military_branch)}</span>
+                <span className="text-gray-600">{formatValue(latestPreferences?.military_branch)}</span>
               </div>
               
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="font-medium text-gray-700">Environmental Initiatives:</span>
-                <span className="text-gray-600">{formatBooleanValue(latestPreference.environmental_initiatives)}</span>
+                <span className="text-gray-600">{formatBooleanValue(latestPreferences?.environmental_initiatives)}</span>
               </div>
               
               <div className="flex justify-between items-center py-2">
                 <span className="font-medium text-gray-700">Diversity, Equity & Inclusion:</span>
-                <span className="text-gray-600">{formatBooleanValue(latestPreference.diversity_equity_inclusion)}</span>
+                <span className="text-gray-600">{formatBooleanValue(latestPreferences?.diversity_equity_inclusion)}</span>
               </div>
             </div>
           </CardContent>

@@ -95,7 +95,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_profile_with_preferences: {
+        Args: { user_uuid: string }
+        Returns: {
+          id: string
+          email: string
+          created_at: string
+          updated_at: string
+          has_preferences: boolean
+          preferences_count: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
