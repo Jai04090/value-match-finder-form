@@ -73,20 +73,41 @@ export type Database = {
         Row: {
           created_at: string
           email: string | null
+          first_name: string | null
+          household_members: number | null
           id: string
+          income_range: string | null
+          last_name: string | null
+          phone_number: string | null
           updated_at: string
+          year_of_birth: number | null
+          zip_code: string | null
         }
         Insert: {
           created_at?: string
           email?: string | null
+          first_name?: string | null
+          household_members?: number | null
           id: string
+          income_range?: string | null
+          last_name?: string | null
+          phone_number?: string | null
           updated_at?: string
+          year_of_birth?: number | null
+          zip_code?: string | null
         }
         Update: {
           created_at?: string
           email?: string | null
+          first_name?: string | null
+          household_members?: number | null
           id?: string
+          income_range?: string | null
+          last_name?: string | null
+          phone_number?: string | null
           updated_at?: string
+          year_of_birth?: number | null
+          zip_code?: string | null
         }
         Relationships: []
       }

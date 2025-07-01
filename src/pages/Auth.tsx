@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
 const Auth = () => {
@@ -16,6 +17,15 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // Additional registration fields
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [yearOfBirth, setYearOfBirth] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [incomeRange, setIncomeRange] = useState('');
+  const [householdMembers, setHouseholdMembers] = useState('');
+  const [zipCode, setZipCode] = useState('');
 
   // Redirect if already authenticated
   React.useEffect(() => {
@@ -23,6 +33,26 @@ const Auth = () => {
       navigate('/');
     }
   }, [user, navigate]);
+
+  const validateRegistrationForm = () => {
+    const errors = [];
+    
+    if (!firstName.trim()) errors.push('First name is required');
+    if (!lastName.trim()) errors.push('Last name is required');
+    if (!yearOfBirth || parseInt(yearOfBirth) < 1900 || parseInt(yearOfBirth) > new Date().getFullYear()) {
+      errors.push('Please enter a valid birth year');
+    }
+    if (!phoneNumber.trim()) errors.push('Phone number is required');
+    if (!incomeRange) errors.push('Income range is required');
+    if (!householdMembers || parseInt(householdMembers) < 1 || parseInt(householdMembers) > 10) {
+      errors.push('Household members must be between 1 and 10');
+    }
+    if (!zipCode.trim() || !/^\d{5}(-\d{4})?$/.test(zipCode.trim())) {
+      errors.push('Please enter a valid zip code (e.g., 12345 or 12345-6789)');
+    }
+    
+    return errors;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,17 +65,43 @@ const Auth = () => {
       return;
     }
 
+    // Validate additional fields for sign up
+    if (isSignUp) {
+      const validationErrors = validateRegistrationForm();
+      if (validationErrors.length > 0) {
+        toast({
+          title: "Validation Error",
+          description: validationErrors.join('. '),
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     setLoading(true);
     
     try {
-      const { error } = isSignUp 
-        ? await signUp(email, password)
-        : await signIn(email, password);
+      let result;
+      
+      if (isSignUp) {
+        // Include additional user data in metadata for sign up
+        result = await signUp(email, password, {
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          year_of_birth: parseInt(yearOfBirth),
+          phone_number: phoneNumber.trim(),
+          income_range: incomeRange,
+          household_members: parseInt(householdMembers),
+          zip_code: zipCode.trim()
+        });
+      } else {
+        result = await signIn(email, password);
+      }
 
-      if (error) {
+      if (result.error) {
         toast({
           title: "Error",
-          description: error.message,
+          description: result.error.message,
           variant: "destructive"
         });
       } else {
@@ -68,6 +124,23 @@ const Auth = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setEmail('');
+    setPassword('');
+    setFirstName('');
+    setLastName('');
+    setYearOfBirth('');
+    setPhoneNumber('');
+    setIncomeRange('');
+    setHouseholdMembers('');
+    setZipCode('');
+  };
+
+  const toggleMode = () => {
+    setIsSignUp(!isSignUp);
+    resetForm();
   };
 
   return (
@@ -111,6 +184,106 @@ const Auth = () => {
               />
             </div>
             
+            {isSignUp && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">Legal First Name</Label>
+                    <Input
+                      id="firstName"
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      placeholder="e.g., Ginho"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Legal Last Name</Label>
+                    <Input
+                      id="lastName"
+                      type="text"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      placeholder="e.g., Tam"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="yearOfBirth">Year of Birth</Label>
+                    <Input
+                      id="yearOfBirth"
+                      type="number"
+                      value={yearOfBirth}
+                      onChange={(e) => setYearOfBirth(e.target.value)}
+                      placeholder="e.g., 1999"
+                      min="1900"
+                      max={new Date().getFullYear()}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="householdMembers">Members in Household</Label>
+                    <Input
+                      id="householdMembers"
+                      type="number"
+                      value={householdMembers}
+                      onChange={(e) => setHouseholdMembers(e.target.value)}
+                      placeholder="1-10"
+                      min="1"
+                      max="10"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="phoneNumber">Phone Number</Label>
+                  <Input
+                    id="phoneNumber"
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="e.g., 123-456-7890"
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="incomeRange">Income Range</Label>
+                  <Select value={incomeRange} onValueChange={setIncomeRange} required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select income range..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="under-25k">Under $25,000</SelectItem>
+                      <SelectItem value="25k-49k">$25,000 - $49,999</SelectItem>
+                      <SelectItem value="50k-74k">$50,000 - $74,999</SelectItem>
+                      <SelectItem value="75k-99k">$75,000 - $99,999</SelectItem>
+                      <SelectItem value="100k-plus">$100,000 and above</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="zipCode">Zip Code</Label>
+                  <Input
+                    id="zipCode"
+                    type="text"
+                    value={zipCode}
+                    onChange={(e) => setZipCode(e.target.value)}
+                    placeholder="e.g., 12345"
+                    required
+                  />
+                </div>
+              </>
+            )}
+            
             <Button 
               type="submit" 
               className="w-full"
@@ -123,7 +296,7 @@ const Auth = () => {
           <div className="mt-4 text-center">
             <button
               type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
+              onClick={toggleMode}
               className="text-blue-600 hover:text-blue-800 underline"
             >
               {isSignUp 
