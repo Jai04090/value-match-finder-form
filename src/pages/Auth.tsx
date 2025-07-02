@@ -16,6 +16,7 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [justCompletedSignup, setJustCompletedSignup] = useState(false);
   
   // Additional registration fields
   const [firstName, setFirstName] = useState('');
@@ -26,14 +27,14 @@ const Auth = () => {
   const [householdMembers, setHouseholdMembers] = useState('');
   const [zipCode, setZipCode] = useState('');
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated (but not if we just completed signup)
   React.useEffect(() => {
-    console.log('Auth page - user state:', user?.email);
-    if (user) {
-      console.log('User authenticated, redirecting to home');
+    console.log('Auth page - user state:', user?.email, 'justCompletedSignup:', justCompletedSignup);
+    if (user && !justCompletedSignup) {
+      console.log('User authenticated and not from signup, redirecting to home');
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [user, navigate, justCompletedSignup]);
 
   const validateRegistrationForm = () => {
     const errors = [];
@@ -88,6 +89,8 @@ const Auth = () => {
       
       if (isSignUp) {
         console.log('Calling signUp...');
+        setJustCompletedSignup(true); // Set flag before signup
+        
         // Include additional user data in metadata for sign up
         result = await signUp(email, password, {
           first_name: firstName.trim(),
@@ -103,6 +106,7 @@ const Auth = () => {
         
         if (result.error) {
           console.log('SignUp error:', result.error.message);
+          setJustCompletedSignup(false); // Reset flag on error
           toast({
             title: "Error",
             description: result.error.message,
@@ -114,13 +118,14 @@ const Auth = () => {
             title: "Registration Successful!",
             description: "Your account has been created. Please sign in with your credentials."
           });
-          // Reset form and switch to login mode - DO NOT navigate away
+          // Reset form and switch to login mode
           resetForm();
           setIsSignUp(false);
-          // Important: Do not call navigate() here
+          // Keep justCompletedSignup true to prevent redirect
         }
       } else {
         console.log('Calling signIn...');
+        setJustCompletedSignup(false); // Clear flag for normal signin
         result = await signIn(email, password);
         
         console.log('SignIn completed, result:', result);
@@ -143,6 +148,7 @@ const Auth = () => {
       }
     } catch (error) {
       console.error('Auth error:', error);
+      setJustCompletedSignup(false); // Reset flag on error
       toast({
         title: "Error",
         description: "An unexpected error occurred",
@@ -167,6 +173,7 @@ const Auth = () => {
 
   const toggleMode = () => {
     setIsSignUp(!isSignUp);
+    setJustCompletedSignup(false); // Reset flag when switching modes
     resetForm();
   };
 
