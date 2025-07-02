@@ -1,6 +1,9 @@
 # Welcome to your Lovable project
 
+<<<<<<< HEAD
 ## Project info
+=======
+>>>>>>> cff2a08 (Update README.md)
 
 **Use your preferred IDE**
 
