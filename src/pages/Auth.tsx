@@ -110,7 +110,7 @@ const Auth = () => {
             title: "Registration Successful!",
             description: "Your account has been created. Please sign in with your credentials."
           });
-          // Reset form and switch to login mode
+          // Reset form and switch to login mode - stay on auth page
           resetForm();
           setIsSignUp(false);
         } else {
@@ -118,6 +118,7 @@ const Auth = () => {
             title: "Success",
             description: "Logged in successfully!"
           });
+          // Only navigate away on successful login, not registration
           navigate('/');
         }
       }
