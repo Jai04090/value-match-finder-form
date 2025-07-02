@@ -105,13 +105,19 @@ const Auth = () => {
           variant: "destructive"
         });
       } else {
-        toast({
-          title: "Success",
-          description: isSignUp 
-            ? "Account created successfully! Please check your email to confirm your account."
-            : "Logged in successfully!"
-        });
-        if (!isSignUp) {
+        if (isSignUp) {
+          toast({
+            title: "Registration Successful!",
+            description: "Your account has been created. Please sign in with your credentials."
+          });
+          // Reset form and switch to login mode
+          resetForm();
+          setIsSignUp(false);
+        } else {
+          toast({
+            title: "Success",
+            description: "Logged in successfully!"
+          });
           navigate('/');
         }
       }
