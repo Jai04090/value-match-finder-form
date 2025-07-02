@@ -41,6 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('Auth state change:', event, 'User:', session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -49,6 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -58,7 +60,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signUp = async (email: string, password: string, metadata?: UserMetadata) => {
-    const redirectUrl = `${window.location.origin}/`;
+    console.log('SignUp called for:', email);
+    const redirectUrl = `${window.location.origin}/auth`;
     
     const { error } = await supabase.auth.signUp({
       email,
@@ -68,18 +71,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         data: metadata || {}
       }
     });
+    console.log('SignUp result:', error ? 'Error' : 'Success');
     return { error };
   };
 
   const signIn = async (email: string, password: string) => {
+    console.log('SignIn called for:', email);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
+    console.log('SignIn result:', error ? 'Error' : 'Success');
     return { error };
   };
 
   const signOut = async () => {
+    console.log('SignOut called');
     await supabase.auth.signOut();
   };
 

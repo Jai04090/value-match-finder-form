@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,7 +28,9 @@ const Auth = () => {
 
   // Redirect if already authenticated
   React.useEffect(() => {
+    console.log('Auth page - user state:', user?.email);
     if (user) {
+      console.log('User authenticated, redirecting to home');
       navigate('/');
     }
   }, [user, navigate]);
@@ -56,6 +57,8 @@ const Auth = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Form submitted:', isSignUp ? 'SignUp' : 'SignIn', email);
+    
     if (!email || !password) {
       toast({
         title: "Error",
@@ -84,6 +87,7 @@ const Auth = () => {
       let result;
       
       if (isSignUp) {
+        console.log('Calling signUp...');
         // Include additional user data in metadata for sign up
         result = await signUp(email, password, {
           first_name: firstName.trim(),
@@ -94,35 +98,51 @@ const Auth = () => {
           household_members: parseInt(householdMembers),
           zip_code: zipCode.trim()
         });
-      } else {
-        result = await signIn(email, password);
-      }
-
-      if (result.error) {
-        toast({
-          title: "Error",
-          description: result.error.message,
-          variant: "destructive"
-        });
-      } else {
-        if (isSignUp) {
+        
+        console.log('SignUp completed, result:', result);
+        
+        if (result.error) {
+          console.log('SignUp error:', result.error.message);
+          toast({
+            title: "Error",
+            description: result.error.message,
+            variant: "destructive"
+          });
+        } else {
+          console.log('SignUp successful - showing success message and switching to login');
           toast({
             title: "Registration Successful!",
             description: "Your account has been created. Please sign in with your credentials."
           });
-          // Reset form and switch to login mode - stay on auth page
+          // Reset form and switch to login mode - DO NOT navigate away
           resetForm();
           setIsSignUp(false);
+          // Important: Do not call navigate() here
+        }
+      } else {
+        console.log('Calling signIn...');
+        result = await signIn(email, password);
+        
+        console.log('SignIn completed, result:', result);
+        
+        if (result.error) {
+          console.log('SignIn error:', result.error.message);
+          toast({
+            title: "Error",
+            description: result.error.message,
+            variant: "destructive"
+          });
         } else {
+          console.log('SignIn successful');
           toast({
             title: "Success",
             description: "Logged in successfully!"
           });
-          // Only navigate away on successful login, not registration
-          navigate('/');
+          // Navigation will happen automatically via the useEffect above when user state changes
         }
       }
     } catch (error) {
+      console.error('Auth error:', error);
       toast({
         title: "Error",
         description: "An unexpected error occurred",
