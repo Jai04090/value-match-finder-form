@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator';
+import { RecaptchaWrapper, RecaptchaWrapperRef } from '@/components/auth/RecaptchaWrapper';
+import { validatePassword } from '@/utils/auth/passwordValidation';
+import { Eye, EyeOff } from 'lucide-react';
 
 const Auth = () => {
   const { signIn, signUp, user } = useAuth();
@@ -17,6 +21,10 @@ const Auth = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [justCompletedSignup, setJustCompletedSignup] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const recaptchaRef = useRef<RecaptchaWrapperRef>(null);
   
   // Additional registration fields
   const [firstName, setFirstName] = useState('');
@@ -52,6 +60,22 @@ const Auth = () => {
     if (!zipCode.trim() || !/^\d{5}(-\d{4})?$/.test(zipCode.trim())) {
       errors.push('Please enter a valid zip code (e.g., 12345 or 12345-6789)');
     }
+
+    // Password validation
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      errors.push(...passwordValidation.errors);
+    }
+
+    // Confirm password
+    if (password !== confirmPassword) {
+      errors.push('Passwords do not match');
+    }
+
+    // reCAPTCHA validation
+    if (!recaptchaToken) {
+      errors.push('Please complete the reCAPTCHA verification');
+    }
     
     return errors;
   };
@@ -64,6 +88,16 @@ const Auth = () => {
       toast({
         title: "Error",
         description: "Please fill in all fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // For login, require reCAPTCHA
+    if (!isSignUp && !recaptchaToken) {
+      toast({
+        title: "Error",
+        description: "Please complete the reCAPTCHA verification",
         variant: "destructive"
       });
       return;
@@ -121,6 +155,7 @@ const Auth = () => {
           // Reset form and switch to login mode
           resetForm();
           setIsSignUp(false);
+          recaptchaRef.current?.reset();
           // Keep justCompletedSignup true to prevent redirect
         }
       } else {
@@ -143,6 +178,7 @@ const Auth = () => {
             title: "Success",
             description: "Logged in successfully!"
           });
+          recaptchaRef.current?.reset();
           // Navigation will happen automatically via the useEffect above when user state changes
         }
       }
@@ -162,6 +198,7 @@ const Auth = () => {
   const resetForm = () => {
     setEmail('');
     setPassword('');
+    setConfirmPassword('');
     setFirstName('');
     setLastName('');
     setYearOfBirth('');
@@ -169,6 +206,8 @@ const Auth = () => {
     setIncomeRange('');
     setHouseholdMembers('');
     setZipCode('');
+    setRecaptchaToken(null);
+    recaptchaRef.current?.reset();
   };
 
   const toggleMode = () => {
@@ -208,18 +247,51 @@ const Auth = () => {
             
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="pr-10"
+                  required
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </Button>
+              </div>
+              {isSignUp && password && (
+                <PasswordStrengthIndicator password={password} />
+              )}
             </div>
             
             {isSignUp && (
               <>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type={showPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm your password"
+                    required
+                  />
+                  {confirmPassword && password !== confirmPassword && (
+                    <p className="text-sm text-red-500">Passwords do not match</p>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">Legal First Name</Label>
@@ -317,6 +389,30 @@ const Auth = () => {
                 </div>
               </>
             )}
+
+            {/* reCAPTCHA */}
+            <div className="flex justify-center">
+              <RecaptchaWrapper
+                ref={recaptchaRef}
+                siteKey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI" // Test key - replace with your actual key
+                onVerify={setRecaptchaToken}
+                onError={() => {
+                  toast({
+                    title: "reCAPTCHA Error",
+                    description: "Failed to verify reCAPTCHA. Please try again.",
+                    variant: "destructive"
+                  });
+                }}
+                onExpired={() => {
+                  setRecaptchaToken(null);
+                  toast({
+                    title: "reCAPTCHA Expired",
+                    description: "Please complete the reCAPTCHA again.",
+                    variant: "destructive"
+                  });
+                }}
+              />
+            </div>
             
             <Button 
               type="submit" 

@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { sessionManager } from '@/utils/auth/sessionManager';
 
 interface UserMetadata {
   first_name?: string;
@@ -45,6 +46,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        
+        // Update session manager based on auth state
+        if (session?.user) {
+          sessionManager.updateActivity();
+        }
       }
     );
 
@@ -87,6 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     console.log('SignOut called');
+    sessionManager.destroy();
     await supabase.auth.signOut();
   };
 
