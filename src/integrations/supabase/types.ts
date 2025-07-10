@@ -74,42 +74,114 @@ export type Database = {
         }
         Relationships: []
       }
+      institution_offers: {
+        Row: {
+          created_at: string
+          description: string | null
+          expiry_date: string | null
+          id: string
+          institution_id: string
+          offer_link: string | null
+          referral_bonus: number | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          expiry_date?: string | null
+          id?: string
+          institution_id: string
+          offer_link?: string | null
+          referral_bonus?: number | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          expiry_date?: string | null
+          id?: string
+          institution_id?: string
+          offer_link?: string | null
+          referral_bonus?: number | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "institution_offers_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "institution_offers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
+          dei_preference: boolean | null
           email: string | null
           first_name: string | null
+          full_name: string | null
+          green_banking_interest: boolean | null
           household_members: number | null
           id: string
           income_range: string | null
+          is_student: boolean | null
           last_name: string | null
+          location: string | null
           phone_number: string | null
+          role: string | null
           updated_at: string
           year_of_birth: number | null
           zip_code: string | null
         }
         Insert: {
           created_at?: string
+          dei_preference?: boolean | null
           email?: string | null
           first_name?: string | null
+          full_name?: string | null
+          green_banking_interest?: boolean | null
           household_members?: number | null
           id: string
           income_range?: string | null
+          is_student?: boolean | null
           last_name?: string | null
+          location?: string | null
           phone_number?: string | null
+          role?: string | null
           updated_at?: string
           year_of_birth?: number | null
           zip_code?: string | null
         }
         Update: {
           created_at?: string
+          dei_preference?: boolean | null
           email?: string | null
           first_name?: string | null
+          full_name?: string | null
+          green_banking_interest?: boolean | null
           household_members?: number | null
           id?: string
           income_range?: string | null
+          is_student?: boolean | null
           last_name?: string | null
+          location?: string | null
           phone_number?: string | null
+          role?: string | null
           updated_at?: string
           year_of_birth?: number | null
           zip_code?: string | null

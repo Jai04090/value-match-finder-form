@@ -10,6 +10,8 @@ import Navigation from "@/components/Navigation";
 import Index from "./pages/Index";
 import Preferences from "./pages/Preferences";
 import Auth from "./pages/Auth";
+import InstitutionLogin from "./pages/InstitutionLogin";
+import InstitutionDashboard from "./pages/InstitutionDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +39,22 @@ const App = () => (
               element={
                 <ProtectedRoute requireAuth={false}>
                   <Auth />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/institution-login" 
+              element={
+                <ProtectedRoute requireAuth={false}>
+                  <InstitutionLogin />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/institution-dashboard" 
+              element={
+                <ProtectedRoute>
+                  <InstitutionDashboard />
                 </ProtectedRoute>
               } 
             />

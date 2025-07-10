@@ -130,6 +130,19 @@ const Auth = () => {
           </form>
           
           <AuthFormToggle isSignUp={isSignUp} onToggle={toggleMode} />
+          
+          <div className="mt-6 pt-4 border-t border-border text-center">
+            <p className="text-sm text-muted-foreground mb-2">
+              Financial Institution?
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/institution-login')}
+              className="w-full"
+            >
+              Institution Portal →
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
