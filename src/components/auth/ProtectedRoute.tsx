@@ -33,7 +33,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           .from('profiles')
           .select('role')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
         if (error) {
           console.error('Error fetching user role:', error);
@@ -70,7 +70,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     if (userRole === 'institution') {
       return <Navigate to="/institution-dashboard" replace />;
     }
-    return <Navigate to="/" replace />;
+    // For regular users, only redirect to home if they're not already there
+    if (location.pathname !== '/') {
+      return <Navigate to="/" replace />;
+    }
   }
 
   // Check role requirements

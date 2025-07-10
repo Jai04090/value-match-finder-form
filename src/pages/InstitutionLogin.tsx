@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,7 @@ const InstitutionLogin: React.FC = () => {
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const recaptchaRef = useRef<RecaptchaWrapperRef>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // If user is already logged in, check their role
   if (user) {
@@ -142,7 +143,7 @@ const InstitutionLogin: React.FC = () => {
           });
           
           // Redirect to institution dashboard after successful signup
-          window.location.href = '/institution-dashboard';
+          setTimeout(() => navigate('/institution-dashboard'), 100);
         }
       } else {
         // Sign in existing institution
@@ -177,7 +178,7 @@ const InstitutionLogin: React.FC = () => {
         });
         
         // Redirect to institution dashboard after successful login
-        window.location.href = '/institution-dashboard';
+        setTimeout(() => navigate('/institution-dashboard'), 100);
       }
 
     } catch (err: any) {

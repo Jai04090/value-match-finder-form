@@ -25,7 +25,14 @@ const App = () => (
         <BrowserRouter>
           <Navigation />
           <Routes>
-            <Route path="/" element={<Index />} />
+            <Route 
+              path="/" 
+              element={
+                <ProtectedRoute requireAuth={false}>
+                  <Index />
+                </ProtectedRoute>
+              } 
+            />
             <Route 
               path="/preferences" 
               element={
