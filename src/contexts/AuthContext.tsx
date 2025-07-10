@@ -12,6 +12,9 @@ interface UserMetadata {
   income_range?: string;
   household_members?: number;
   zip_code?: string;
+  role?: string;
+  institution_name?: string;
+  institution_type?: string;
 }
 
 interface AuthContextType {
