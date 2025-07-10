@@ -105,7 +105,10 @@ const StaffInstitutions = () => {
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">12</div>
+              <div className="text-2xl font-bold">
+                {/* This will be fetched from database in a future update */}
+                -
+              </div>
               <p className="text-xs text-muted-foreground">
                 Templates in use by institutions
               </p>
@@ -120,9 +123,12 @@ const StaffInstitutions = () => {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">347</div>
+              <div className="text-2xl font-bold">
+                {/* This will be fetched from database in a future update */}
+                -
+              </div>
               <p className="text-xs text-muted-foreground">
-                This month
+                Total offers created
               </p>
             </CardContent>
           </Card>

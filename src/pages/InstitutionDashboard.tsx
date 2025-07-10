@@ -6,10 +6,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Building2, LogOut, Users, BarChart3, TrendingUp, Target, Eye, MousePointer, UserCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useInstitutionDashboardData } from '@/hooks/useInstitutionDashboardData';
 
 const InstitutionDashboard: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { 
+    activeOffers, 
+    totalViews, 
+    totalClicks, 
+    conversions, 
+    userInterests, 
+    eligibilityStats, 
+    loading, 
+    error 
+  } = useInstitutionDashboardData();
 
   const handleLogout = async () => {
     try {
@@ -31,22 +42,42 @@ const InstitutionDashboard: React.FC = () => {
     return <Navigate to="/institution-login" replace />;
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="text-center text-red-600 p-8">
+          <p>Error loading dashboard: {error}</p>
+        </div>
+      </div>
+    );
+  }
+
   const kpiData = [
-    { label: "Active Offers", value: "12", icon: Target },
-    { label: "Total Views", value: "1,200", icon: Eye },
-    { label: "Total Clicks", value: "327", icon: MousePointer },
-    { label: "Conversions", value: "89", icon: UserCheck },
+    { label: "Active Offers", value: activeOffers.toString(), icon: Target },
+    { label: "Total Views", value: totalViews.toLocaleString(), icon: Eye },
+    { label: "Total Clicks", value: totalClicks.toLocaleString(), icon: MousePointer },
+    { label: "Conversions", value: conversions.toString(), icon: UserCheck },
   ];
 
   const interestData = [
-    { label: "DEI", percentage: 40, color: "bg-primary" },
-    { label: "Green Banking", percentage: 35, color: "bg-secondary" },
-    { label: "Student Accounts", percentage: 25, color: "bg-accent" },
+    { label: "DEI", percentage: userInterests.dei, color: "bg-primary" },
+    { label: "Green Banking", percentage: userInterests.greenBanking, color: "bg-secondary" },
+    { label: "Student Accounts", percentage: userInterests.students, color: "bg-accent" },
   ];
 
   const eligibilityData = [
-    { label: "Referral Bonus Eligible", percentage: 65 },
-    { label: "ZIP Code Match", percentage: 80 },
+    { label: "Referral Bonus Eligible", percentage: eligibilityStats.referralBonusEligible },
+    { label: "ZIP Code Match", percentage: eligibilityStats.zipCodeMatch },
   ];
 
   return (

@@ -3,8 +3,34 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, FileText, Users, TrendingUp } from 'lucide-react';
+import { useStaffDashboardData } from '@/hooks/useStaffDashboardData';
 
 const StaffDashboard = () => {
+  const { activeTemplates, partnerInstitutions, offersSent, recentActivity, loading, error } = useStaffDashboardData();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 to-secondary/5">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 to-secondary/5">
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center text-red-600 p-8">
+            <p>Error loading dashboard: {error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-secondary/5">
       <div className="container mx-auto px-4 py-8">
@@ -24,9 +50,9 @@ const StaffDashboard = () => {
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">12</div>
+              <div className="text-2xl font-bold">{activeTemplates}</div>
               <p className="text-xs text-muted-foreground">
-                +2 from last month
+                Available templates
               </p>
             </CardContent>
           </Card>
@@ -39,9 +65,9 @@ const StaffDashboard = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">8</div>
+              <div className="text-2xl font-bold">{partnerInstitutions}</div>
               <p className="text-xs text-muted-foreground">
-                +1 from last month
+                Registered institutions
               </p>
             </CardContent>
           </Card>
@@ -54,9 +80,9 @@ const StaffDashboard = () => {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">347</div>
+              <div className="text-2xl font-bold">{offersSent}</div>
               <p className="text-xs text-muted-foreground">
-                +23% from last month
+                Total offers created
               </p>
             </CardContent>
           </Card>
@@ -101,27 +127,21 @@ const StaffDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm">
-                    <div className="font-medium">Student Referral Template</div>
-                    <div className="text-muted-foreground">Used by First National Bank</div>
+                {recentActivity.length > 0 ? (
+                  recentActivity.map((activity) => (
+                    <div key={activity.id} className="flex items-center justify-between">
+                      <div className="text-sm">
+                        <div className="font-medium">{activity.title}</div>
+                        <div className="text-muted-foreground">{activity.description}</div>
+                      </div>
+                      <div className="text-xs text-muted-foreground">{activity.time}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-muted-foreground text-center py-4">
+                    No recent activity
                   </div>
-                  <div className="text-xs text-muted-foreground">2h ago</div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="text-sm">
-                    <div className="font-medium">DEI Initiative Template</div>
-                    <div className="text-muted-foreground">Created by you</div>
-                  </div>
-                  <div className="text-xs text-muted-foreground">1d ago</div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="text-sm">
-                    <div className="font-medium">Green Banking Template</div>
-                    <div className="text-muted-foreground">Used by Community Credit Union</div>
-                  </div>
-                  <div className="text-xs text-muted-foreground">2d ago</div>
-                </div>
+                )}
               </div>
             </CardContent>
           </Card>
