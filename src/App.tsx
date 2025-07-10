@@ -13,6 +13,8 @@ import Auth from "./pages/Auth";
 import InstitutionLogin from "./pages/InstitutionLogin";
 import InstitutionDashboard from "./pages/InstitutionDashboard";
 import UserDirectory from "./pages/UserDirectory";
+import StaffLogin from "./pages/StaffLogin";
+import StaffDashboard from "./pages/StaffDashboard";
 import StaffCreateOffer from "./pages/StaffCreateOffer";
 import NotFound from "./pages/NotFound";
 
@@ -64,6 +66,22 @@ const App = () => (
               element={
                 <ProtectedRoute requireRole="institution">
                   <InstitutionDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/staff-login" 
+              element={
+                <ProtectedRoute requireAuth={false}>
+                  <StaffLogin />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/staff/dashboard" 
+              element={
+                <ProtectedRoute requireRole="staff">
+                  <StaffDashboard />
                 </ProtectedRoute>
               } 
             />

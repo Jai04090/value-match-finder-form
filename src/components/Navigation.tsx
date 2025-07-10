@@ -1,13 +1,44 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, Shield, FileText } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const Navigation = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (!user) {
+        setUserRole(null);
+        return;
+      }
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error fetching user role:', error);
+          setUserRole(null);
+        } else {
+          setUserRole(profile?.role || 'user');
+        }
+      } catch (err) {
+        console.error('Error:', err);
+        setUserRole(null);
+      }
+    };
+
+    fetchUserRole();
+  }, [user]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -24,12 +55,30 @@ const Navigation = () => {
         <div className="flex items-center gap-4">
           {user ? (
             <>
-              <Link to="/preferences">
-                <Button variant="ghost" className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  My Preferences
-                </Button>
-              </Link>
+              {userRole === 'staff' && (
+                <>
+                  <Link to="/staff/dashboard">
+                    <Button variant="ghost" className="flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      Staff Dashboard
+                    </Button>
+                  </Link>
+                  <Link to="/staff/create-offer">
+                    <Button variant="ghost" className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Create Template
+                    </Button>
+                  </Link>
+                </>
+              )}
+              {userRole === 'user' && (
+                <Link to="/preferences">
+                  <Button variant="ghost" className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    My Preferences
+                  </Button>
+                </Link>
+              )}
               <Button 
                 variant="outline" 
                 onClick={handleSignOut}

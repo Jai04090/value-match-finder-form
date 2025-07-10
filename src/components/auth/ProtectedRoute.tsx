@@ -70,6 +70,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     if (userRole === 'institution') {
       return <Navigate to="/institution-dashboard" replace />;
     }
+    if (userRole === 'staff') {
+      return <Navigate to="/staff/dashboard" replace />;
+    }
     // For regular users, only redirect to home if they're not already there
     if (location.pathname !== '/') {
       return <Navigate to="/" replace />;
@@ -81,12 +84,20 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     if (userRole === 'institution') {
       return <Navigate to="/institution-dashboard" replace />;
     }
+    if (userRole === 'staff') {
+      return <Navigate to="/staff/dashboard" replace />;
+    }
     return <Navigate to="/auth" replace />;
   }
 
   // Redirect institutions away from user pages
   if (userRole === 'institution' && (location.pathname === '/' || location.pathname === '/preferences')) {
     return <Navigate to="/institution-dashboard" replace />;
+  }
+
+  // Redirect staff away from user pages
+  if (userRole === 'staff' && (location.pathname === '/' || location.pathname === '/preferences')) {
+    return <Navigate to="/staff/dashboard" replace />;
   }
 
   return <>{children}</>;
