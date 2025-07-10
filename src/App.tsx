@@ -13,6 +13,7 @@ import Auth from "./pages/Auth";
 import InstitutionLogin from "./pages/InstitutionLogin";
 import InstitutionDashboard from "./pages/InstitutionDashboard";
 import UserDirectory from "./pages/UserDirectory";
+import StaffCreateOffer from "./pages/StaffCreateOffer";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -71,6 +72,14 @@ const App = () => (
               element={
                 <ProtectedRoute requireRole="institution">
                   <UserDirectory />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/staff/create-offer" 
+              element={
+                <ProtectedRoute requireRole="staff">
+                  <StaffCreateOffer />
                 </ProtectedRoute>
               } 
             />

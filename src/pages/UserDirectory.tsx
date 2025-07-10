@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { SendOfferModal } from '@/components/institution/SendOfferModal';
+import { TemplatedSendOfferModal } from '@/components/institution/TemplatedSendOfferModal';
 import { Building2, LogOut, Users, Filter, Mail, BarChart3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -312,18 +312,20 @@ const UserDirectory: React.FC = () => {
         </Card>
       </div>
 
-      {/* Send Offer Modal */}
-      {showOfferModal && selectedUser && (
-        <SendOfferModal
-          user={selectedUser}
-          institutionId={user.id}
-          onClose={() => {
-            setShowOfferModal(false);
-            setSelectedUser(null);
-          }}
-          onSuccess={handleOfferSent}
-        />
-      )}
+        {selectedUser && (
+          <TemplatedSendOfferModal
+            user={selectedUser}
+            institutionId={user?.id || ''}
+            onClose={() => setSelectedUser(null)}
+            onSuccess={() => {
+              setSelectedUser(null);
+              toast({
+                title: "Offer Sent",
+                description: "Your offer has been sent successfully.",
+              });
+            }}
+          />
+        )}
     </div>
   );
 };

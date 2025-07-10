@@ -83,6 +83,7 @@ export type Database = {
           institution_id: string
           offer_link: string | null
           referral_bonus: number | null
+          template_id: string | null
           title: string
           updated_at: string
           user_id: string
@@ -95,6 +96,7 @@ export type Database = {
           institution_id: string
           offer_link?: string | null
           referral_bonus?: number | null
+          template_id?: string | null
           title: string
           updated_at?: string
           user_id: string
@@ -107,6 +109,7 @@ export type Database = {
           institution_id?: string
           offer_link?: string | null
           referral_bonus?: number | null
+          template_id?: string | null
           title?: string
           updated_at?: string
           user_id?: string
@@ -120,6 +123,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "institution_offers_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "offer_templates"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "institution_offers_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -127,6 +137,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      offer_templates: {
+        Row: {
+          allowed_filters: Json | null
+          created_at: string
+          created_by: string
+          description: string | null
+          eligibility_criteria: string | null
+          expiry_date: string | null
+          id: string
+          name: string
+          offer_link: string | null
+          reward_details: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          allowed_filters?: Json | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          eligibility_criteria?: string | null
+          expiry_date?: string | null
+          id?: string
+          name: string
+          offer_link?: string | null
+          reward_details?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          allowed_filters?: Json | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          eligibility_criteria?: string | null
+          expiry_date?: string | null
+          id?: string
+          name?: string
+          offer_link?: string | null
+          reward_details?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
