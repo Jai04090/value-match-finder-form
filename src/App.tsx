@@ -29,7 +29,7 @@ const App = () => (
             <Route 
               path="/preferences" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireRole="user">
                   <Preferences />
                 </ProtectedRoute>
               } 
@@ -53,7 +53,7 @@ const App = () => (
             <Route 
               path="/institution-dashboard" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireRole="institution">
                   <InstitutionDashboard />
                 </ProtectedRoute>
               } 
