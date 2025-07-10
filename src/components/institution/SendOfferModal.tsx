@@ -15,7 +15,6 @@ interface UserProfile {
   id: string;
   full_name: string | null;
   email: string | null;
-  location: string | null;
   is_student: boolean;
   green_banking_interest: boolean;
   dei_preference: boolean;

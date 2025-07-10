@@ -15,7 +15,6 @@ interface UserProfile {
   id: string;
   full_name: string | null;
   email: string | null;
-  location: string | null;
   is_student: boolean;
   green_banking_interest: boolean;
   dei_preference: boolean;
@@ -63,7 +62,7 @@ const InstitutionDashboard: React.FC = () => {
         // Load user profiles
         const { data: userProfiles, error: usersError } = await supabase
           .from('profiles')
-          .select('id, full_name, email, location, is_student, green_banking_interest, dei_preference')
+          .select('id, full_name, email, is_student, green_banking_interest, dei_preference')
           .eq('role', 'user');
 
         if (usersError) throw usersError;
@@ -232,7 +231,6 @@ const InstitutionDashboard: React.FC = () => {
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left p-3 font-medium text-foreground">Email</th>
-                      <th className="text-left p-3 font-medium text-foreground">Location</th>
                       <th className="text-center p-3 font-medium text-foreground">Student</th>
                       <th className="text-center p-3 font-medium text-foreground">DEI</th>
                       <th className="text-center p-3 font-medium text-foreground">Green Banking</th>
@@ -244,9 +242,6 @@ const InstitutionDashboard: React.FC = () => {
                       <tr key={user.id} className="border-b border-border/50 hover:bg-muted/50">
                         <td className="p-3 text-foreground">
                           {user.email || 'N/A'}
-                        </td>
-                        <td className="p-3 text-foreground">
-                          {user.location || 'N/A'}
                         </td>
                         <td className="p-3 text-center">
                           {user.is_student ? (
