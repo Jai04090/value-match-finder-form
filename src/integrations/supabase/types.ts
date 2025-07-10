@@ -139,6 +139,8 @@ export type Database = {
           household_members: number | null
           id: string
           income_range: string | null
+          institution_name: string | null
+          institution_type: string | null
           is_student: boolean | null
           last_name: string | null
           location: string | null
@@ -158,6 +160,8 @@ export type Database = {
           household_members?: number | null
           id: string
           income_range?: string | null
+          institution_name?: string | null
+          institution_type?: string | null
           is_student?: boolean | null
           last_name?: string | null
           location?: string | null
@@ -177,6 +181,8 @@ export type Database = {
           household_members?: number | null
           id?: string
           income_range?: string | null
+          institution_name?: string | null
+          institution_type?: string | null
           is_student?: boolean | null
           last_name?: string | null
           location?: string | null
