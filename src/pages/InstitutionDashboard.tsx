@@ -62,12 +62,32 @@ const InstitutionDashboard: React.FC = () => {
         // Load user profiles
         const { data: userProfiles, error: usersError } = await supabase
           .from('profiles')
-          .select('id, full_name, email, is_student, green_banking_interest, dei_preference')
+          .select('id, full_name, email')
           .eq('role', 'user');
 
         if (usersError) throw usersError;
 
-        setUsers(userProfiles || []);
+        // Load form submissions with preferences
+        const { data: formSubmissions, error: formsError } = await supabase
+          .from('form_submissions')
+          .select('email, student_or_alumni, diversity_equity_inclusion, environmental_initiatives');
+
+        if (formsError) throw formsError;
+
+        // Merge the data
+        const usersWithPreferences = userProfiles?.map(profile => {
+          const submission = formSubmissions?.find(sub => sub.email === profile.email);
+          return {
+            id: profile.id,
+            full_name: profile.full_name,
+            email: profile.email,
+            is_student: submission?.student_or_alumni ? submission.student_or_alumni.trim() !== '' : false,
+            dei_preference: submission?.diversity_equity_inclusion || false,
+            green_banking_interest: submission?.environmental_initiatives || false
+          };
+        }) || [];
+
+        setUsers(usersWithPreferences);
       } catch (err: any) {
         setError(err.message || 'Failed to load dashboard');
       } finally {
