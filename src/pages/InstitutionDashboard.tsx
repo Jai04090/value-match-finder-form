@@ -64,6 +64,12 @@ const InstitutionDashboard: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <Button asChild variant="outline">
+              <Link to="/institution/templates" className="gap-2">
+                <Target className="h-4 w-4" />
+                Browse Templates
+              </Link>
+            </Button>
             <Button asChild>
               <Link to="/institution/user-directory" className="gap-2">
                 <Users className="h-4 w-4" />

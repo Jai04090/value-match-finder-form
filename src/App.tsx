@@ -17,6 +17,8 @@ import StaffLogin from "./pages/StaffLogin";
 import StaffDashboard from "./pages/StaffDashboard";
 import StaffCreateOffer from "./pages/StaffCreateOffer";
 import StaffTemplates from "./pages/StaffTemplates";
+import StaffInstitutions from "./pages/StaffInstitutions";
+import InstitutionTemplates from "./pages/InstitutionTemplates";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -107,6 +109,22 @@ const App = () => (
               element={
                 <ProtectedRoute requireRole="staff">
                   <StaffTemplates />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/staff/institutions" 
+              element={
+                <ProtectedRoute requireRole="staff">
+                  <StaffInstitutions />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/institution/templates" 
+              element={
+                <ProtectedRoute requireRole="institution">
+                  <InstitutionTemplates />
                 </ProtectedRoute>
               } 
             />
