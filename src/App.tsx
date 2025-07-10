@@ -12,6 +12,7 @@ import Preferences from "./pages/Preferences";
 import Auth from "./pages/Auth";
 import InstitutionLogin from "./pages/InstitutionLogin";
 import InstitutionDashboard from "./pages/InstitutionDashboard";
+import UserDirectory from "./pages/UserDirectory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -62,6 +63,14 @@ const App = () => (
               element={
                 <ProtectedRoute requireRole="institution">
                   <InstitutionDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/institution/user-directory" 
+              element={
+                <ProtectedRoute requireRole="institution">
+                  <UserDirectory />
                 </ProtectedRoute>
               } 
             />
