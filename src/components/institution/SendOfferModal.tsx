@@ -70,11 +70,33 @@ export const SendOfferModal: React.FC<SendOfferModalProps> = ({
         offer_link: formData.offer_link || null
       };
 
-      const { error: insertError } = await supabase
+      const { data: insertedOffer, error: insertError } = await supabase
         .from('institution_offers')
-        .insert([offerData]);
+        .insert([offerData])
+        .select()
+        .single();
 
       if (insertError) throw insertError;
+
+      // Send email notification
+      const { error: emailError } = await supabase.functions.invoke('send-offer-email', {
+        body: {
+          offerId: insertedOffer.id,
+          userEmail: user.email,
+          userName: user.full_name,
+          institutionName: 'Financial Institution', // You can get this from the institution profile
+          offerTitle: formData.title,
+          offerDescription: formData.description,
+          offerLink: formData.offer_link,
+          referralBonus: formData.referral_bonus ? parseInt(formData.referral_bonus) : null,
+          expiryDate: format(formData.expiry_date, 'yyyy-MM-dd')
+        }
+      });
+
+      if (emailError) {
+        console.error('Email sending error:', emailError);
+        // Don't throw here - offer was created successfully, just email failed
+      }
 
       onSuccess();
     } catch (err: any) {
