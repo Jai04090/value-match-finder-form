@@ -10,7 +10,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CalendarIcon, Users, Shield, LogOut } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { CalendarIcon, Users, Shield, LogOut, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -38,7 +39,9 @@ export default function StaffCreateOffer() {
     eligibility_criteria: '',
     reward_details: '',
     expiry_date: undefined as Date | undefined,
-    offer_link: ''
+    offer_link: '',
+    publish_at: undefined as Date | undefined,
+    publish_immediately: true
   });
 
   const [allowedFilters, setAllowedFilters] = useState<AllowedFilters>({
@@ -113,18 +116,39 @@ export default function StaffCreateOffer() {
         expiry_date: formData.expiry_date ? format(formData.expiry_date, 'yyyy-MM-dd') : null,
         offer_link: formData.offer_link || null,
         allowed_filters: allowedFilters as any,
-        created_by: user?.id
+        created_by: user?.id,
+        publish_at: formData.publish_immediately ? null : formData.publish_at?.toISOString(),
+        is_published: formData.publish_immediately
       };
 
-      const { error: insertError } = await supabase
+      const { data: insertData, error: insertError } = await supabase
         .from('offer_templates')
-        .insert([templateData]);
+        .insert([templateData])
+        .select('id')
+        .single();
 
       if (insertError) throw insertError;
 
+      // Log the template creation
+      if (insertData?.id) {
+        await supabase
+          .from('template_publishing_logs')
+          .insert({
+            template_id: insertData.id,
+            action: formData.publish_immediately ? 'published' : 'scheduled',
+            scheduled_for: formData.publish_at?.toISOString(),
+            published_at: formData.publish_immediately ? new Date().toISOString() : null,
+            staff_user_id: user?.id
+          });
+      }
+
       toast({
         title: "Template Created",
-        description: "Offer template has been created successfully.",
+        description: formData.publish_immediately 
+          ? "Offer template has been created and published."
+          : formData.publish_at 
+            ? `Offer template scheduled for publication on ${format(formData.publish_at, 'PPP at HH:mm')}.`
+            : "Offer template has been created successfully.",
       });
 
       // Reset form
@@ -135,7 +159,9 @@ export default function StaffCreateOffer() {
         eligibility_criteria: '',
         reward_details: '',
         expiry_date: undefined,
-        offer_link: ''
+        offer_link: '',
+        publish_at: undefined,
+        publish_immediately: true
       });
       setAllowedFilters({
         is_student: false,
@@ -318,6 +344,93 @@ export default function StaffCreateOffer() {
                     onChange={(e) => handleInputChange('offer_link', e.target.value)}
                     placeholder="https://your-institution.com/offer"
                   />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-foreground">Publishing Schedule</h3>
+                <p className="text-sm text-muted-foreground">
+                  Choose when this template should become available to institutions.
+                </p>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="publish_immediately"
+                      checked={formData.publish_immediately}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, publish_immediately: checked }))}
+                    />
+                    <label htmlFor="publish_immediately" className="text-sm font-medium text-foreground">
+                      Publish immediately after approval
+                    </label>
+                  </div>
+
+                  {!formData.publish_immediately && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Scheduled Publication Time
+                      </label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !formData.publish_at && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {formData.publish_at ? (
+                              format(formData.publish_at, "PPP 'at' HH:mm")
+                            ) : (
+                              <span>Pick a date and time</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={formData.publish_at}
+                            onSelect={(date) => {
+                              if (date) {
+                                // Set default time to 9 AM if no time is set
+                                const newDate = new Date(date);
+                                if (!formData.publish_at) {
+                                  newDate.setHours(9, 0, 0, 0);
+                                } else {
+                                  newDate.setHours(formData.publish_at.getHours(), formData.publish_at.getMinutes());
+                                }
+                                setFormData(prev => ({ ...prev, publish_at: newDate }));
+                              }
+                            }}
+                            disabled={(date) => date < new Date()}
+                            initialFocus
+                          />
+                          {formData.publish_at && (
+                            <div className="p-3 border-t">
+                              <label className="text-sm font-medium text-foreground mb-2 block">
+                                Time
+                              </label>
+                              <div className="flex gap-2">
+                                <Input
+                                  type="time"
+                                  value={format(formData.publish_at, 'HH:mm')}
+                                  onChange={(e) => {
+                                    const [hours, minutes] = e.target.value.split(':').map(Number);
+                                    const newDate = new Date(formData.publish_at!);
+                                    newDate.setHours(hours, minutes);
+                                    setFormData(prev => ({ ...prev, publish_at: newDate }));
+                                  }}
+                                  className="w-32"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  )}
                 </div>
               </div>
 

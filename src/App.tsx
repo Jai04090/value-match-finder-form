@@ -15,7 +15,8 @@ import InstitutionDashboard from "./pages/InstitutionDashboard";
 import UserDirectory from "./pages/UserDirectory";
 import StaffLogin from "./pages/StaffLogin";
 import StaffDashboard from "./pages/StaffDashboard";
-import StaffCreateOffer from "./pages/StaffCreateOffer";
+import StaffCreateOffer from "./pages/StaffCreateOfferRefactored";
+import StaffPublishingQueue from "./pages/StaffPublishingQueue";
 import StaffTemplates from "./pages/StaffTemplates";
 import StaffInstitutions from "./pages/StaffInstitutions";
 import StaffApprovals from "./pages/StaffApprovals";
@@ -102,6 +103,14 @@ const App = () => (
               element={
                 <ProtectedRoute requireRole="staff">
                   <StaffCreateOffer />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/staff/publishing-queue" 
+              element={
+                <ProtectedRoute requireRole="staff">
+                  <StaffPublishingQueue />
                 </ProtectedRoute>
               } 
             />

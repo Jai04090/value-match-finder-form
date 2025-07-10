@@ -216,8 +216,10 @@ export type Database = {
           eligibility_criteria: string | null
           expiry_date: string | null
           id: string
+          is_published: boolean | null
           name: string
           offer_link: string | null
+          publish_at: string | null
           rejection_reason: string | null
           reward_details: string | null
           type: string
@@ -234,8 +236,10 @@ export type Database = {
           eligibility_criteria?: string | null
           expiry_date?: string | null
           id?: string
+          is_published?: boolean | null
           name: string
           offer_link?: string | null
+          publish_at?: string | null
           rejection_reason?: string | null
           reward_details?: string | null
           type: string
@@ -252,8 +256,10 @@ export type Database = {
           eligibility_criteria?: string | null
           expiry_date?: string | null
           id?: string
+          is_published?: boolean | null
           name?: string
           offer_link?: string | null
+          publish_at?: string | null
           rejection_reason?: string | null
           reward_details?: string | null
           type?: string
@@ -326,6 +332,47 @@ export type Database = {
           zip_code?: string | null
         }
         Relationships: []
+      }
+      template_publishing_logs: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          published_at: string | null
+          scheduled_for: string | null
+          staff_user_id: string | null
+          template_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          published_at?: string | null
+          scheduled_for?: string | null
+          staff_user_id?: string | null
+          template_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          published_at?: string | null
+          scheduled_for?: string | null
+          staff_user_id?: string | null
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_publishing_logs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "offer_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       template_usage_logs: {
         Row: {
