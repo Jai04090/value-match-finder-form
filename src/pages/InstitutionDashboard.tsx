@@ -231,10 +231,11 @@ const InstitutionDashboard: React.FC = () => {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="text-left p-3 font-medium text-foreground">Name</th>
                       <th className="text-left p-3 font-medium text-foreground">Email</th>
                       <th className="text-left p-3 font-medium text-foreground">Location</th>
-                      <th className="text-left p-3 font-medium text-foreground">Preferences</th>
+                      <th className="text-center p-3 font-medium text-foreground">Student</th>
+                      <th className="text-center p-3 font-medium text-foreground">DEI</th>
+                      <th className="text-center p-3 font-medium text-foreground">Green Banking</th>
                       <th className="text-left p-3 font-medium text-foreground">Actions</th>
                     </tr>
                   </thead>
@@ -242,26 +243,31 @@ const InstitutionDashboard: React.FC = () => {
                     {filteredUsers.map((user) => (
                       <tr key={user.id} className="border-b border-border/50 hover:bg-muted/50">
                         <td className="p-3 text-foreground">
-                          {user.full_name || 'N/A'}
-                        </td>
-                        <td className="p-3 text-foreground">
                           {user.email || 'N/A'}
                         </td>
                         <td className="p-3 text-foreground">
                           {user.location || 'N/A'}
                         </td>
-                        <td className="p-3">
-                          <div className="flex flex-wrap gap-1">
-                            {user.is_student && (
-                              <Badge variant="secondary" className="text-xs">Student</Badge>
-                            )}
-                            {user.dei_preference && (
-                              <Badge variant="secondary" className="text-xs">DEI</Badge>
-                            )}
-                            {user.green_banking_interest && (
-                              <Badge variant="secondary" className="text-xs">Green Banking</Badge>
-                            )}
-                          </div>
+                        <td className="p-3 text-center">
+                          {user.is_student ? (
+                            <Badge variant="secondary" className="text-xs">✓</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-center">
+                          {user.dei_preference ? (
+                            <Badge variant="secondary" className="text-xs">✓</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-center">
+                          {user.green_banking_interest ? (
+                            <Badge variant="secondary" className="text-xs">✓</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </td>
                         <td className="p-3">
                           <Button
