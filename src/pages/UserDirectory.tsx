@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SendOfferModal } from '@/components/institution/SendOfferModal';
-import { Building2, LogOut, Users, Filter, Mail } from 'lucide-react';
+import { Building2, LogOut, Users, Filter, Mail, BarChart3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface UserProfile {
@@ -186,10 +186,18 @@ const UserDirectory: React.FC = () => {
               <p className="text-sm text-muted-foreground">Welcome, {institutionName}</p>
             </div>
           </div>
-          <Button variant="outline" onClick={handleLogout} className="gap-2">
-            <LogOut className="h-4 w-4" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button asChild variant="secondary">
+              <Link to="/institution-dashboard" className="gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Dashboard
+              </Link>
+            </Button>
+            <Button variant="outline" onClick={handleLogout} className="gap-2">
+              <LogOut className="h-4 w-4" />
+              Logout
+            </Button>
+          </div>
         </div>
       </header>
 
