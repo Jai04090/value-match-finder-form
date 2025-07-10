@@ -140,6 +140,9 @@ const InstitutionLogin: React.FC = () => {
             title: "Account Created",
             description: `Welcome, ${institutionName}! Please check your email to verify your account.`,
           });
+          
+          // Redirect to institution dashboard after successful signup
+          window.location.href = '/institution-dashboard';
         }
       } else {
         // Sign in existing institution
@@ -172,6 +175,9 @@ const InstitutionLogin: React.FC = () => {
           title: "Login Successful",
           description: `Welcome back, ${profile.institution_name || profile.full_name || 'Institution'}!`,
         });
+        
+        // Redirect to institution dashboard after successful login
+        window.location.href = '/institution-dashboard';
       }
 
     } catch (err: any) {
