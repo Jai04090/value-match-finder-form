@@ -30,26 +30,26 @@ export const useStaffDashboardData = (): StaffDashboardData => {
       try {
         setData(prev => ({ ...prev, loading: true, error: null }));
 
-        // Fetch active templates count
-        const { data: templatesData, error: templatesError } = await supabase
+        // Fetch active templates count (approved templates)
+        const { count: templatesCount, error: templatesError } = await supabase
           .from('offer_templates')
-          .select('id', { count: 'exact', head: true })
-          .or('expiry_date.is.null,expiry_date.gte.now()');
+          .select('*', { count: 'exact', head: true })
+          .eq('approval_status', 'approved');
 
         if (templatesError) throw new Error(`Templates error: ${templatesError.message}`);
 
         // Fetch partner institutions count
-        const { data: institutionsData, error: institutionsError } = await supabase
+        const { count: institutionsCount, error: institutionsError } = await supabase
           .from('profiles')
-          .select('id', { count: 'exact', head: true })
+          .select('*', { count: 'exact', head: true })
           .eq('role', 'institution');
 
         if (institutionsError) throw new Error(`Institutions error: ${institutionsError.message}`);
 
         // Fetch offers sent count
-        const { data: offersData, error: offersError } = await supabase
+        const { count: offersCount, error: offersError } = await supabase
           .from('institution_offers')
-          .select('id', { count: 'exact', head: true });
+          .select('*', { count: 'exact', head: true });
 
         if (offersError) throw new Error(`Offers error: ${offersError.message}`);
 
@@ -94,9 +94,9 @@ export const useStaffDashboardData = (): StaffDashboardData => {
         .slice(0, 3);
 
         setData({
-          activeTemplates: templatesData?.length || 0,
-          partnerInstitutions: institutionsData?.length || 0,
-          offersSent: offersData?.length || 0,
+          activeTemplates: templatesCount || 0,
+          partnerInstitutions: institutionsCount || 0,
+          offersSent: offersCount || 0,
           recentActivity,
           loading: false,
           error: null,
