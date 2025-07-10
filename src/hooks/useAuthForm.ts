@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { RecaptchaWrapperRef } from '@/components/auth/RecaptchaWrapper';
 import { validatePassword } from '@/utils/auth/passwordValidation';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useAuthForm = () => {
   const { signIn, signUp } = useAuth();
@@ -103,6 +104,24 @@ export const useAuthForm = () => {
     setLoading(true);
     
     try {
+      // Verify reCAPTCHA token with backend
+      if (recaptchaToken) {
+        console.log('Verifying reCAPTCHA token...');
+        const { data: verificationResult, error: verificationError } = await supabase.functions.invoke('verify-recaptcha', {
+          body: { token: recaptchaToken }
+        });
+
+        if (verificationError || !verificationResult?.success) {
+          console.error('reCAPTCHA verification failed:', verificationError || verificationResult);
+          toast({
+            title: "Verification Failed",
+            description: "reCAPTCHA verification failed. Please try again.",
+            variant: "destructive"
+          });
+          return;
+        }
+        console.log('reCAPTCHA verification successful');
+      }
       let result;
       
       if (isSignUp) {

@@ -98,10 +98,10 @@ const Auth = () => {
 
             {/* reCAPTCHA */}
             <div className="flex justify-center">
-              <RecaptchaWrapper
-                ref={recaptchaRef}
-                siteKey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI" // Test key - replace with your actual key
-                onVerify={setRecaptchaToken}
+            <RecaptchaWrapper
+              ref={recaptchaRef}
+              siteKey="6LcvLH4rAAAAALs18XmRYKy5uaKtXMgj7Uyro4xD"
+              onVerify={setRecaptchaToken}
                 onError={() => {
                   toast({
                     title: "reCAPTCHA Error",
