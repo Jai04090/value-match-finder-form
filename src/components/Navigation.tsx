@@ -63,6 +63,12 @@ const Navigation = () => {
                       Staff Dashboard
                     </Button>
                   </Link>
+                  <Link to="/staff/approvals">
+                    <Button variant="ghost" className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Review Approvals
+                    </Button>
+                  </Link>
                   <Link to="/staff/create-offer">
                     <Button variant="ghost" className="flex items-center gap-2">
                       <FileText className="h-4 w-4" />

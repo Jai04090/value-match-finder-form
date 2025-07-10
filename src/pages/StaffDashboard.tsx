@@ -109,6 +109,12 @@ const StaffDashboard = () => {
                   Manage Templates
                 </Button>
               </Link>
+              <Link to="/staff/approvals">
+                <Button className="w-full justify-start" variant="outline">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Review Approvals
+                </Button>
+              </Link>
               <Link to="/staff/institutions">
                 <Button className="w-full justify-start" variant="outline">
                   <Users className="mr-2 h-4 w-4" />

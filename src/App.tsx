@@ -18,6 +18,7 @@ import StaffDashboard from "./pages/StaffDashboard";
 import StaffCreateOffer from "./pages/StaffCreateOffer";
 import StaffTemplates from "./pages/StaffTemplates";
 import StaffInstitutions from "./pages/StaffInstitutions";
+import StaffApprovals from "./pages/StaffApprovals";
 import InstitutionTemplates from "./pages/InstitutionTemplates";
 import NotFound from "./pages/NotFound";
 
@@ -117,6 +118,14 @@ const App = () => (
               element={
                 <ProtectedRoute requireRole="staff">
                   <StaffInstitutions />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/staff/approvals" 
+              element={
+                <ProtectedRoute requireRole="staff">
+                  <StaffApprovals />
                 </ProtectedRoute>
               } 
             />

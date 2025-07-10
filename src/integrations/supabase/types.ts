@@ -138,9 +138,78 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          email_new_offers: boolean | null
+          email_template_approvals: boolean | null
+          email_template_updates: boolean | null
+          id: string
+          in_app_notifications: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_new_offers?: boolean | null
+          email_template_approvals?: boolean | null
+          email_template_updates?: boolean | null
+          id?: string
+          in_app_notifications?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_new_offers?: boolean | null
+          email_template_approvals?: boolean | null
+          email_template_updates?: boolean | null
+          id?: string
+          in_app_notifications?: boolean | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          metadata: Json | null
+          read: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json | null
+          read?: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json | null
+          read?: boolean | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       offer_templates: {
         Row: {
           allowed_filters: Json | null
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
           created_at: string
           created_by: string
           description: string | null
@@ -149,12 +218,16 @@ export type Database = {
           id: string
           name: string
           offer_link: string | null
+          rejection_reason: string | null
           reward_details: string | null
           type: string
           updated_at: string
         }
         Insert: {
           allowed_filters?: Json | null
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           created_by: string
           description?: string | null
@@ -163,12 +236,16 @@ export type Database = {
           id?: string
           name: string
           offer_link?: string | null
+          rejection_reason?: string | null
           reward_details?: string | null
           type: string
           updated_at?: string
         }
         Update: {
           allowed_filters?: Json | null
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
@@ -177,6 +254,7 @@ export type Database = {
           id?: string
           name?: string
           offer_link?: string | null
+          rejection_reason?: string | null
           reward_details?: string | null
           type?: string
           updated_at?: string
@@ -248,6 +326,58 @@ export type Database = {
           zip_code?: string | null
         }
         Relationships: []
+      }
+      template_usage_logs: {
+        Row: {
+          created_at: string
+          id: string
+          institution_id: string
+          metadata: Json | null
+          template_id: string
+          usage_type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          institution_id: string
+          metadata?: Json | null
+          template_id: string
+          usage_type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          institution_id?: string
+          metadata?: Json | null
+          template_id?: string
+          usage_type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_usage_logs_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_usage_logs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "offer_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_usage_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

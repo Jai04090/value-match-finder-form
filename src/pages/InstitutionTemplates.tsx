@@ -38,6 +38,7 @@ const InstitutionTemplates = () => {
       const { data, error } = await supabase
         .from('offer_templates')
         .select('*')
+        .eq('approval_status', 'approved')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
