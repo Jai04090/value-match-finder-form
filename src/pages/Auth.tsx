@@ -100,7 +100,7 @@ const Auth = () => {
             <div className="flex justify-center">
             <RecaptchaWrapper
               ref={recaptchaRef}
-              siteKey="6LcvLH4rAAAAALs18XmRYKy5uaKtXMgj7Uyro4xD"
+              siteKey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
               onVerify={setRecaptchaToken}
                 onError={() => {
                   toast({
