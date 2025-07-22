@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { LogOut, User, Shield, FileText } from 'lucide-react';
@@ -9,7 +9,10 @@ import { supabase } from '@/integrations/supabase/client';
 const Navigation = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [userRole, setUserRole] = useState<string | null>(null);
+
+  const isHomePage = location.pathname === '/';
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -45,10 +48,15 @@ const Navigation = () => {
     navigate('/');
   };
 
+  // Don't show navigation on homepage for a cleaner landing experience
+  if (isHomePage) {
+    return null;
+  }
+
   return (
     <nav className="bg-white shadow-sm border-b px-4 py-3">
       <div className="max-w-6xl mx-auto flex justify-between items-center">
-        <Link to="/" className="text-xl font-bold text-gray-800">
+        <Link to="/" className="text-xl font-bold text-brand-electric">
           Grofinity
         </Link>
         

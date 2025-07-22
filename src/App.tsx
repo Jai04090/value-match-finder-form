@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Navigation from "@/components/Navigation";
 import Index from "./pages/Index";
+import GetStarted from "./pages/GetStarted";
 import Preferences from "./pages/Preferences";
 import Auth from "./pages/Auth";
 import InstitutionLogin from "./pages/InstitutionLogin";
@@ -39,6 +40,14 @@ const App = () => (
               element={
                 <ProtectedRoute requireAuth={false}>
                   <Index />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/get-started" 
+              element={
+                <ProtectedRoute requireAuth={false}>
+                  <GetStarted />
                 </ProtectedRoute>
               } 
             />

@@ -1,8 +1,8 @@
 
-import FinancialPreferencesForm from '@/components/FinancialPreferencesForm';
+import HomePage from './HomePage';
 
 const Index = () => {
-  return <FinancialPreferencesForm />;
+  return <HomePage />;
 };
 
 export default Index;
