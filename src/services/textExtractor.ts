@@ -1,11 +1,8 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import Papa from 'papaparse';
 
-// Configure PDF.js worker to use the bundled worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.js',
-  import.meta.url
-).toString();
+// Configure PDF.js worker with CDN fallback
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 export class TextExtractor {
   static async extractFromPDF(file: File): Promise<string> {
