@@ -217,40 +217,75 @@ export class TransactionParser {
   private static parseMultipleTransactionsFromLine(line: string, currentYear: number): RawTransaction[] {
     const transactions: RawTransaction[] = [];
     
-    // Enhanced pattern to detect multiple transactions with better separation
-    // Pattern 1: Multiple date-merchant-amount sequences
-    const multiPattern = /(\d{1,2}\/\d{1,2}(?:\/\d{4})?)\s+([^0-9-]+?)\s+(-?\d+\.\d{2})/g;
-    let match;
+    // Enhanced pattern to detect concatenated transactions with locations
+    const concatenatedPattern = /(.+?)\s+([A-Z]{2})([A-Z][a-z].+)/;
+    const concatenatedMatch = line.match(concatenatedPattern);
     
-    while ((match = multiPattern.exec(line)) !== null) {
-      const [, dateStr, merchantStr, amountStr] = match;
+    if (concatenatedMatch) {
+      // Try to split concatenated merchants
+      const [, firstPart, stateCode, secondPart] = concatenatedMatch;
       
-      const date = this.normalizeDate(dateStr, currentYear);
-      const merchant = this.cleanMerchantName(merchantStr.trim());
-      const amount = parseFloat(amountStr);
+      // Look for embedded transactions in the concatenated string
+      const transactionPatterns = [
+        /(\d{1,2}\/\d{1,2})\s+([^$]+?)\s+(\$?\d+\.?\d*)/g,
+        /(Purchase authorized on \d{1,2}\/\d{1,2})\s+([^$]+?)\s+(\$?\d+\.?\d*)/g,
+        /(Withdrawal.*?on \d{1,2}\/\d{1,2})\s+([^$]+?)\s+(\$?\d+\.?\d*)/g
+      ];
       
-      if (this.isValidTransaction({ date, merchant, amount })) {
-        transactions.push({ date, merchant, amount });
-      }
-    }
-    
-    // Pattern 2: Check for transactions separated by multiple spaces or tabs
-    if (transactions.length === 0) {
-      const parts = line.split(/\s{3,}|\t+/);
-      if (parts.length >= 3) {
-        for (let i = 0; i < parts.length - 2; i++) {
-          const dateMatch = parts[i].match(/\d{1,2}\/\d{1,2}/);
-          const amountMatch = parts[i + 2].match(/([-]?\d+\.\d{2})/);
+      for (const pattern of transactionPatterns) {
+        let match;
+        while ((match = pattern.exec(line)) !== null) {
+          const [, dateOrPrefix, merchantStr, amountStr] = match;
           
-          if (dateMatch && amountMatch) {
-            const date = this.normalizeDate(dateMatch[0], currentYear);
-            const merchant = this.cleanMerchantName(parts[i + 1]);
-            const amount = parseFloat(amountMatch[1]);
-            
-            if (this.isValidTransaction({ date, merchant, amount })) {
-              transactions.push({ date, merchant, amount });
-            }
+          // Extract date from prefix if needed
+          const dateMatch = dateOrPrefix.match(/(\d{1,2}\/\d{1,2})/);
+          if (!dateMatch) continue;
+          
+          const normalizedDate = this.normalizeDate(dateMatch[1], currentYear);
+          if (!normalizedDate) continue;
+          
+          const amount = parseFloat(amountStr.replace(/\$/, ''));
+          if (isNaN(amount)) continue;
+          
+          const cleanMerchant = this.cleanMerchantName(merchantStr);
+          if (!cleanMerchant || cleanMerchant.length < 2) continue;
+          
+          const transaction: RawTransaction = {
+            date: normalizedDate,
+            merchant: cleanMerchant,
+            amount: -Math.abs(amount)
+          };
+          
+          if (this.isValidTransaction(transaction)) {
+            transactions.push(transaction);
           }
+        }
+      }
+    } else {
+      // Standard multi-transaction pattern
+      const multiTransactionPattern = /(\d{1,2}\/\d{1,2})\s+([^$]+?)\s+(\$?\d+\.?\d*)/g;
+      let match;
+      
+      while ((match = multiTransactionPattern.exec(line)) !== null) {
+        const [, dateStr, merchantStr, amountStr] = match;
+        
+        const normalizedDate = this.normalizeDate(dateStr, currentYear);
+        if (!normalizedDate) continue;
+        
+        const amount = parseFloat(amountStr.replace(/\$/, ''));
+        if (isNaN(amount)) continue;
+        
+        const cleanMerchant = this.cleanMerchantName(merchantStr);
+        if (!cleanMerchant || cleanMerchant.length < 2) continue;
+        
+        const transaction: RawTransaction = {
+          date: normalizedDate,
+          merchant: cleanMerchant,
+          amount: -Math.abs(amount)
+        };
+        
+        if (this.isValidTransaction(transaction)) {
+          transactions.push(transaction);
         }
       }
     }
@@ -365,32 +400,74 @@ export class TransactionParser {
     
     let merchant = rawMerchant.trim();
     
-    // Remove transaction prefixes with dates/times
-    merchant = merchant.replace(/^(purchase\s+authorized\s+on\s+\d{1,2}\/\d{1,2}\s+|withdrawal\s+on\s+\d{1,2}\/\d{1,2}\s+|deposit\s+on\s+\d{1,2}\/\d{1,2}\s+)/i, '');
-    merchant = merchant.replace(/^(purchase\s+on\s+\d{4}\s+|withdrawal\s+\d{4}\s+|deposit\s+\d{4}\s+)/i, '');
+    // Remove verbose transaction prefixes with embedded dates/locations
+    const verbosePrefixPatterns = [
+      /^Purchase authorized on \d{1,2}\/\d{1,2}\s*/i,
+      /^Withdrawal authorized on \d{1,2}\/\d{1,2}\s*/i,
+      /^Withdrawal made in.*?(on \d{1,2}\/\d{1,2})?\s*/i,
+      /^Purchase authorized on.*?\s+/i,
+      /^Deposit authorized on.*?\s+/i,
+      /^Transaction on \d{1,2}\/\d{1,2}\s*/i,
+    ];
+
+    verbosePrefixPatterns.forEach(pattern => {
+      merchant = merchant.replace(pattern, '');
+    });
+
+    // Split concatenated merchants (look for patterns like "MerchantA CityMerchantB")
+    const concatenationPattern = /^(.+?)\s+[A-Z]{2}([A-Z][a-z].+)$/;
+    const concatenationMatch = merchant.match(concatenationPattern);
+    if (concatenationMatch) {
+      // Take the first merchant name before the state code
+      merchant = concatenationMatch[1];
+    }
+
+    // Remove common prefixes and suffixes
+    const prefixPatterns = [
+      /^(Purchase authorized on|Withdrawal authorized on|Deposit authorized on)\s*/i,
+      /^(Transaction\s+)?on\s+\d{1,2}\/\d{1,2}\s*/i,
+      /^ATM\s+(Withdrawal|Deposit)\s+/i,
+      /^Check\s+/i,
+      /^Withdrawal Made In A Branch\/Store\s*/i,
+    ];
+
+    prefixPatterns.forEach(pattern => {
+      merchant = merchant.replace(pattern, '');
+    });
+
+    // Remove city/state patterns that got attached
+    merchant = merchant.replace(/\s+[A-Z][a-z]+\s+[A-Z]{2}.*$/i, '');
     
-    // Remove embedded dates and times
-    merchant = merchant.replace(/\s+\d{1,2}\/\d{1,2}(\/\d{2,4})?\s+/g, ' ');
-    merchant = merchant.replace(/\s+\d{4}\s+/g, ' ');
+    // Remove dates in various formats
+    merchant = merchant.replace(/\b\d{1,2}\/\d{1,2}(\/\d{2,4})?\b/g, '');
+    merchant = merchant.replace(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}(,?\s+\d{4})?\b/gi, '');
     
-    // Remove Wells Fargo specific patterns
-    merchant = merchant.replace(/\s*Wells Fargo Bank.*$/i, '');
-    merchant = merchant.replace(/\s*WELLS FARGO.*$/i, '');
-    merchant = merchant.replace(/\s*WF\s+.*$/i, '');
+    // Remove times
+    merchant = merchant.replace(/\b\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?\b/gi, '');
     
-    // Remove state codes, ZIP codes, and trailing location data
-    merchant = merchant.replace(/\s+(CA|TX|NY|FL|UT|NV|AZ|WA|OR)\s*\d*\s*$/i, '');
-    merchant = merchant.replace(/\s+\d{5}(-\d{4})?\s*$/, ''); // ZIP codes
+    // Remove amounts (dollar signs with numbers)
+    merchant = merchant.replace(/\$?\d+\.?\d*/g, '');
     
-    // Remove trailing amounts and reference numbers
-    merchant = merchant.replace(/\s+\d{1,5}\.\d{2}$/, '');
-    merchant = merchant.replace(/\s+#?\d+$/, '');
-    merchant = merchant.replace(/\s+\d{2,6}$/, ''); // Remove trailing numbers
+    // Remove check numbers and fragments
+    merchant = merchant.replace(/\b(Check|Ck)\s*#?\s*\d+/gi, '');
+    merchant = merchant.replace(/\b\d+\s*$/, ''); // Trailing numbers
     
-    // Remove fragments like "/2", "/30", ".00"
-    merchant = merchant.replace(/\/\d{1,2}$/, '');
-    merchant = merchant.replace(/\.\d{2}$/, '');
-    
+    // Remove common suffixes and artifacts
+    const suffixPatterns = [
+      /\s+(CA|NY|TX|FL|IL|WA|OR|NV|AZ)\s*$/i, // State codes at the end
+      /\s+\d{5}(-\d{4})?\s*$/, // ZIP codes
+      /\s+(Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Court|Ct)\s*$/i,
+      /\s+#\d+\s*$/,
+      /\s+(Inc|LLC|Corp|Co|Ltd|LP)\s*$/i,
+      /\s+(Store|Shop|Market|Mart|Plaza|Center|Centre)\s*$/i,
+      /urchase authorized.*$/i, // Common parsing artifacts
+      /\s*\d+\s*$/, // Any remaining trailing numbers
+    ];
+
+    suffixPatterns.forEach(pattern => {
+      merchant = merchant.replace(pattern, '');
+    });
+
     // Enhanced check formatting
     if (merchant.toLowerCase().includes('check')) {
       const checkMatch = merchant.match(/check\s*[#.]?(\d+)/i);
@@ -403,21 +480,13 @@ export class TransactionParser {
         return `Check #${malformedCheckMatch[1]}`;
       }
     }
-    
+
     // Remove PII redaction artifacts that might leak through
     merchant = merchant.replace(/\s*\d+\.\[?REDACTED_[A-Z]+\]?\s*\d*/g, '');
     merchant = merchant.replace(/\s*[A-Z]{2}\s+\d+\.\[?REDACTED_[A-Z]+\]?\s*\d*/g, '');
     
     // Remove any remaining redacted fragments or noise
     merchant = merchant.replace(/\[REDACTED_[A-Z]+\].*$/, '').trim();
-    
-    // Remove dates in various formats
-    merchant = merchant.replace(/\s+\d{1,2}\/\d{1,2}\/?\d{0,4}\s*$/, '');
-    merchant = merchant.replace(/\s+\d{1,2}-\d{1,2}-?\d{0,4}\s*$/, '');
-    
-    // Remove amounts that might have leaked into merchant names
-    merchant = merchant.replace(/\s*\$?\d+\.\d{2}\s*$/, '');
-    merchant = merchant.replace(/\s*\d+\.\d{2}\s*$/, '');
     
     // Remove common transaction artifacts
     merchant = merchant.replace(/\s*POS\s*$/i, '');
@@ -432,16 +501,11 @@ export class TransactionParser {
     merchant = merchant.replace(/\s*TXN\s*#?\s*\d+.*$/i, ''); // Remove transaction numbers
     merchant = merchant.replace(/\s*ID\s*#?\s*\d+.*$/i, ''); // Remove ID numbers
     
-    // Remove redundant whitespace and clean up
+    // Remove extra whitespace and normalize
     merchant = merchant.replace(/\s+/g, ' ').trim();
     
-    // Remove leading/trailing non-alphabetic characters except #
-    merchant = merchant.replace(/^[^a-zA-Z#]+/, '').replace(/[^a-zA-Z0-9#\s]+$/, '');
-    
-    // Remove standalone numbers that might be fragments
-    if (/^\d+$/.test(merchant)) {
-      merchant = '';
-    }
+    // Remove any remaining punctuation at the end
+    merchant = merchant.replace(/[.,;:!?]+$/, '');
     
     return merchant;
   }
@@ -471,38 +535,46 @@ export class TransactionParser {
   }
 
   private static isValidTransaction(transaction: Partial<RawTransaction>): boolean {
-    // Check if transaction has all required fields
     if (!transaction.date || !transaction.merchant || transaction.amount === undefined) {
       return false;
     }
-    
-    // Validate date format (should be YYYY-MM-DD after normalization)
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(transaction.date)) {
+
+    // Check if merchant is meaningful (not just numbers, single characters, or nonsense)
+    if (transaction.merchant.length < 2 || /^\d+$/.test(transaction.merchant)) {
       return false;
     }
-    
-    // Validate date is within 2018 (Wells Fargo PDF constraint)
+
+    // Reject merchants that are clearly parsing artifacts
+    const nonsensePatterns = [
+      /^[A-Z]{1,3}[a-z]{1,3}$/,  // Random short strings like "Dlse Pwcr"
+      /^\d+$/,                    // Pure numbers
+      /^[.,;:!?\s]+$/,           // Pure punctuation
+      /^(Check|Ck)\s*#?\s*\d*$/i // Just "Check" without merchant
+    ];
+
+    if (nonsensePatterns.some(pattern => pattern.test(transaction.merchant))) {
+      return false;
+    }
+
+    // Check if amount is reasonable
+    const amount = Math.abs(transaction.amount);
+    if (amount === 0 || amount > 50000) { // Increased limit for large checks
+      return false;
+    }
+
+    // Validate date format
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+    if (!datePattern.test(transaction.date)) {
+      return false;
+    }
+
+    // Check if it's within the expected 2018 Wells Fargo statement range
     const year = parseInt(transaction.date.substring(0, 4));
-    if (year !== 2018) {
+    const month = parseInt(transaction.date.substring(5, 7));
+    if (year !== 2018 || month < 1 || month > 12) {
       return false;
     }
-    
-    // Enhanced amount validation
-    if (isNaN(transaction.amount) || Math.abs(transaction.amount) > 50000 || Math.abs(transaction.amount) < 0.01) {
-      return false;
-    }
-    
-    // Enhanced merchant name validation
-    const merchantTrimmed = transaction.merchant.trim();
-    if (merchantTrimmed.length === 0 || 
-        /^\d+\.?\d*$/.test(merchantTrimmed) || // Just numbers
-        merchantTrimmed.length < 2 || // Too short
-        /^[\d\.\s\/]+$/.test(merchantTrimmed) || // Only digits, dots, spaces, slashes
-        merchantTrimmed === 'Check' || // Incomplete check format
-        /^[^a-zA-Z]*$/.test(merchantTrimmed)) { // No letters at all
-      return false;
-    }
-    
+
     return true;
   }
 

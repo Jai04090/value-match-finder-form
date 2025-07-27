@@ -5,12 +5,13 @@ export class TransactionCategorizer {
     Banking: [
       'deposit', 'interest payment', 'ach credit', 'wire transfer', 'stripe', 'ach debit',
       'online transfer', 'transfer', 'bank fee', 'direct deposit', 'payroll',
-      'wells fargo', 'checking', 'savings', 'account maintenance', 'bank'
+      'wells fargo', 'checking', 'savings', 'account maintenance', 'bank',
+      'pennymac', 'quicken loans', 'rocket mortgage', 'lending', 'finance'
     ],
     ATM: [
       'atm withdrawal', 'atm check', 'cash advance', 'atm fee', 'atm deposit',
       'atm', 'cash withdrawal', 'teller', 'branch withdrawal', 'cash advance fee',
-      'cash deposit'
+      'cash deposit', 'withdrawal made in a branch', 'branch/store', 'in a branch'
     ],
     Retail: [
       'costco', 'cintas', 'office max', 'officemax', 'fedex', 'ups', 'amazon', 
@@ -18,7 +19,8 @@ export class TransactionCategorizer {
       'gap', 'nike', 'apple store', 'cvs', 'walgreens', 'store', 'shop', 'whse',
       'retail', 'purchase', 'merchant', 'pos', 'sale', 'goods', 'supply',
       'hardware', 'electronics', 'clothing', 'pharmacy', 'supermarket', 'warehouse',
-      'pets', 'pet store', 'grooming', 'veterinary', 'vet', 'jurassic', 'animal'
+      'pets', 'pet store', 'grooming', 'veterinary', 'vet', 'jurassic', 'animal',
+      'truck parts', 'pacific truck', 'parts', 'automotive', 'auto parts'
     ],
     Food: [
       'starbucks', '7-eleven', '7 eleven', 'panera', 'panera bread', 'mcdonald', 
@@ -26,7 +28,7 @@ export class TransactionCategorizer {
       'market', 'subway', 'chipotle', 'taco', 'wendy', 'kfc', 'domino',
       'dining', 'eatery', 'bistro', 'grill', 'deli', 'bakery', 'bar',
       'kroger', 'safeway', 'publix', 'whole foods', 'trader joe', 'gas station',
-      'eleven'
+      'eleven', 'la plaza bakery', 'fast food', 'drive thru'
     ],
     Subscriptions: [
       'comcast', 'vivint', 'netflix', 'spotify', 'subscription', 'monthly', 
@@ -69,13 +71,16 @@ export class TransactionCategorizer {
   ): TransactionCategory {
     const merchantLower = transaction.merchant.toLowerCase();
     
-    // Enhanced ATM detection - most specific patterns first
+    // Enhanced ATM detection - including branch withdrawals
     if (merchantLower.includes('atm withdrawal') || 
         merchantLower.includes('atm check') || 
         merchantLower.includes('atm deposit') ||
         merchantLower.includes('atm fee') ||
         merchantLower.includes('cash withdrawal') ||
         merchantLower.includes('cash deposit') ||
+        merchantLower.includes('withdrawal made in a branch') ||
+        merchantLower.includes('branch/store') ||
+        merchantLower.includes('teller withdrawal') ||
         /atm\s*(withdrawal|deposit|check)/i.test(transaction.merchant)) {
       return 'ATM';
     }
@@ -100,33 +105,47 @@ export class TransactionCategorizer {
       return 'Fees';
     }
     
-    // Check categories in specific order to reduce "Other" usage
-    const categoriesOrder: (keyof KeywordMap)[] = ['Check', 'Fees', 'ATM', 'Food', 'Retail', 'Subscriptions', 'Banking', 'Other'];
+    // Enhanced category matching with better priority order
+    const categoryPriority = ['ATM', 'Check', 'Fees', 'Banking', 'Food', 'Subscriptions', 'Retail', 'Other'];
     
-    for (const category of categoriesOrder) {
+    for (const category of categoryPriority) {
       const keywords = keywordMap[category] || [];
-      
-      const hasMatch = keywords.some(keyword => 
-        merchantLower.includes(keyword.toLowerCase())
-      );
-      
-      if (hasMatch) {
-        return category as TransactionCategory;
+      for (const keyword of keywords) {
+        if (merchantLower.includes(keyword.toLowerCase())) {
+          return category as TransactionCategory;
+        }
       }
     }
     
-    // Final fallback - try partial matching for common patterns
-    if (merchantLower.includes('market') || merchantLower.includes('grocery')) {
+    // Additional pattern matching for common merchant types not caught above
+    if (merchantLower.includes('market') || merchantLower.includes('grocery') ||
+        merchantLower.includes('bakery') || merchantLower.includes('restaurant')) {
       return 'Food';
     }
-    if (merchantLower.includes('store') || merchantLower.includes('shop')) {
+    
+    if (merchantLower.includes('store') || merchantLower.includes('shop') ||
+        merchantLower.includes('parts') || merchantLower.includes('warehouse')) {
       return 'Retail';
     }
-    if (merchantLower.includes('service') && !merchantLower.includes('fee')) {
-      return 'Subscriptions';
+    
+    if (merchantLower.includes('bank') || merchantLower.includes('financial') ||
+        merchantLower.includes('loan') || merchantLower.includes('mortgage')) {
+      return 'Banking';
     }
     
-    // Default to 'Other' if no matches found
+    // Enhanced pet/veterinary detection
+    if (merchantLower.includes('pet') || merchantLower.includes('vet') ||
+        merchantLower.includes('animal') || merchantLower.includes('grooming') ||
+        merchantLower.includes('jurassic')) {
+      return 'Retail';
+    }
+    
+    // Truck parts and automotive
+    if (merchantLower.includes('truck') || merchantLower.includes('auto') ||
+        merchantLower.includes('parts') || merchantLower.includes('pacific')) {
+      return 'Retail';
+    }
+    
     return 'Other';
   }
 
