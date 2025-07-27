@@ -80,10 +80,17 @@ export class TransactionParser {
   ];
 
   static parseTransactions(redactedText: string): RawTransaction[] {
+    console.log('📄 Starting transaction parsing...');
+    console.log('📄 Input text length:', redactedText.length);
+    
     const lines = redactedText.split('\n').map(line => line.trim()).filter(Boolean);
+    console.log('📄 Total lines to process:', lines.length);
+    
     const transactions: RawTransaction[] = [];
     let inTransactionSection = false;
     let currentYear = new Date().getFullYear();
+    
+    console.log('📄 Sample lines:', lines.slice(0, 10));
 
     // First pass: try to extract transactions using tabular patterns
     for (let i = 0; i < lines.length; i++) {
@@ -96,12 +103,14 @@ export class TransactionParser {
 
       // Check if we're entering a transaction section
       if (this.isTransactionSectionHeader(line)) {
+        console.log('📄 Found transaction section header:', line);
         inTransactionSection = true;
         continue;
       }
 
       // Check for table headers
       if (this.isTableHeader(line)) {
+        console.log('📄 Found table header:', line);
         inTransactionSection = true;
         continue;
       }
@@ -109,18 +118,21 @@ export class TransactionParser {
       // Try tabular parsing first (most accurate for structured data)
       const tabularTransaction = this.parseTabularTransaction(line, currentYear);
       if (tabularTransaction) {
+        console.log('✅ Added tabular transaction:', tabularTransaction);
         transactions.push(tabularTransaction);
         continue;
       }
 
-      // Only proceed with other parsing if we're in a transaction section
-      if (!inTransactionSection) {
+      // Only proceed with other parsing if we're in a transaction section OR if the line looks like a transaction
+      if (!inTransactionSection && !this.looksLikeTransaction(line)) {
+        console.log('⚠️ Skipping line (not in transaction section):', line);
         continue;
       }
 
       // Try single-line transaction parsing
       const transaction = this.parseTransactionLine(line);
       if (transaction) {
+        console.log('✅ Added single-line transaction:', transaction);
         transactions.push(transaction);
         continue;
       }
@@ -128,18 +140,26 @@ export class TransactionParser {
       // Try multi-line transaction parsing
       const multiLineTransaction = this.parseMultiLineTransaction(lines, i);
       if (multiLineTransaction) {
+        console.log('✅ Added multi-line transaction:', multiLineTransaction);
         transactions.push(multiLineTransaction);
         i += 1; // Skip the next line since we processed it
       }
     }
 
-    return this.deduplicateTransactions(transactions);
+    console.log('📄 Total transactions found:', transactions.length);
+    const deduped = this.deduplicateTransactions(transactions);
+    console.log('📄 After deduplication:', deduped.length);
+    return deduped;
   }
 
   private static parseTabularTransaction(line: string, currentYear: number): RawTransaction | null {
-    for (const pattern of this.tabularPatterns) {
+    console.log('🔍 Trying tabular parsing for line:', line);
+    
+    for (let patternIndex = 0; patternIndex < this.tabularPatterns.length; patternIndex++) {
+      const pattern = this.tabularPatterns[patternIndex];
       const match = line.match(pattern);
       if (match) {
+        console.log('✅ Pattern', patternIndex, 'matched:', match);
         const [, dateStr, merchant, amountStr] = match;
         
         try {
@@ -147,15 +167,20 @@ export class TransactionParser {
           const amount = parseFloat(amountStr.replace(/[,$]/g, ''));
           const cleanMerchant = this.cleanMerchantName(merchant);
           
+          console.log('🔧 Parsed components:', { date, merchant: cleanMerchant, amount });
+          
           if (date && !isNaN(amount) && cleanMerchant) {
+            console.log('✅ Successfully created transaction:', { date, merchant: cleanMerchant, amount });
             return {
               date,
               merchant: cleanMerchant,
               amount
             };
+          } else {
+            console.log('❌ Failed validation:', { date: !!date, amount: !isNaN(amount), merchant: !!cleanMerchant });
           }
         } catch (error) {
-          // Skip malformed entries
+          console.log('❌ Error parsing tabular transaction:', error);
         }
       }
     }
@@ -224,6 +249,12 @@ export class TransactionParser {
 
   private static isTableHeader(line: string): boolean {
     return this.tableHeaderPatterns.some(pattern => pattern.test(line));
+  }
+
+  private static looksLikeTransaction(line: string): boolean {
+    const hasDate = this.extractDate(line) !== null;
+    const hasAmount = this.extractAmount(line) !== null;
+    return hasDate || hasAmount;
   }
 
   private static extractDate(line: string): string | null {
