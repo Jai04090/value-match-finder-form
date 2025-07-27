@@ -75,8 +75,6 @@ export class TransactionParser {
   ];
 
   private static preprocessText(text: string): string {
-    console.log('🔧 Preprocessing text...');
-    
     // First, try to extract inline transactions from the long lines
     const inlineTransactions: string[] = [];
     
@@ -85,13 +83,11 @@ export class TransactionParser {
       let match;
       while ((match = pattern.exec(text)) !== null) {
         const [fullMatch, date, merchant, amount] = match;
-        console.log('🔍 Found inline transaction:', fullMatch);
         inlineTransactions.push(fullMatch);
       }
     }
     
     if (inlineTransactions.length > 0) {
-      console.log('✅ Found', inlineTransactions.length, 'inline transactions');
       // Add the found transactions as separate lines
       return text + '\n' + inlineTransactions.join('\n');
     }
@@ -103,7 +99,6 @@ export class TransactionParser {
       .replace(/\n{3,}/g, '\n\n') // Normalize multiple newlines
       .trim();
     
-    console.log('🔧 Preprocessing complete');
     return processed;
   }
   private static readonly tabularPatterns = [
@@ -118,19 +113,13 @@ export class TransactionParser {
   ];
 
   static parseTransactions(redactedText: string): RawTransaction[] {
-    console.log('📄 Starting transaction parsing...');
-    console.log('📄 Input text length:', redactedText.length);
-    
     // Preprocess text to handle PDF extraction issues
     const preprocessedText = this.preprocessText(redactedText);
     const lines = preprocessedText.split('\n').map(line => line.trim()).filter(Boolean);
-    console.log('📄 Total lines after preprocessing:', lines.length);
     
     const transactions: RawTransaction[] = [];
     let inTransactionSection = false;
     let currentYear = new Date().getFullYear();
-    
-    console.log('📄 First 10 lines after preprocessing:', lines.slice(0, 10));
 
     // First pass: try to extract transactions using tabular patterns
     for (let i = 0; i < lines.length; i++) {
@@ -143,14 +132,12 @@ export class TransactionParser {
 
       // Check if we're entering a transaction section
       if (this.isTransactionSectionHeader(line)) {
-        console.log('📄 Found transaction section header:', line);
         inTransactionSection = true;
         continue;
       }
 
       // Check for table headers
       if (this.isTableHeader(line)) {
-        console.log('📄 Found table header:', line);
         inTransactionSection = true;
         continue;
       }
@@ -158,21 +145,18 @@ export class TransactionParser {
       // Try tabular parsing first (most accurate for structured data)
       const tabularTransaction = this.parseTabularTransaction(line, currentYear);
       if (tabularTransaction) {
-        console.log('✅ Added tabular transaction:', tabularTransaction);
         transactions.push(tabularTransaction);
         continue;
       }
 
       // Only proceed with other parsing if we're in a transaction section OR if the line looks like a transaction
       if (!inTransactionSection && !this.looksLikeTransaction(line)) {
-        console.log('⚠️ Skipping line (not in transaction section):', line);
         continue;
       }
 
       // Try single-line transaction parsing
       const transaction = this.parseTransactionLine(line);
       if (transaction) {
-        console.log('✅ Added single-line transaction:', transaction);
         transactions.push(transaction);
         continue;
       }
@@ -180,26 +164,19 @@ export class TransactionParser {
       // Try multi-line transaction parsing
       const multiLineTransaction = this.parseMultiLineTransaction(lines, i);
       if (multiLineTransaction) {
-        console.log('✅ Added multi-line transaction:', multiLineTransaction);
         transactions.push(multiLineTransaction);
         i += 1; // Skip the next line since we processed it
       }
     }
 
-    console.log('📄 Total transactions found:', transactions.length);
-    const deduped = this.deduplicateTransactions(transactions);
-    console.log('📄 After deduplication:', deduped.length);
-    return deduped;
+    return this.deduplicateTransactions(transactions);
   }
 
   private static parseTabularTransaction(line: string, currentYear: number): RawTransaction | null {
-    console.log('🔍 Trying tabular parsing for line:', line);
-    
     for (let patternIndex = 0; patternIndex < this.tabularPatterns.length; patternIndex++) {
       const pattern = this.tabularPatterns[patternIndex];
       const match = line.match(pattern);
       if (match) {
-        console.log('✅ Pattern', patternIndex, 'matched:', match);
         const [, dateStr, merchant, amountStr] = match;
         
         try {
@@ -207,20 +184,15 @@ export class TransactionParser {
           const amount = parseFloat(amountStr.replace(/[,$]/g, ''));
           const cleanMerchant = this.cleanMerchantName(merchant);
           
-          console.log('🔧 Parsed components:', { date, merchant: cleanMerchant, amount });
-          
           if (date && !isNaN(amount) && cleanMerchant) {
-            console.log('✅ Successfully created transaction:', { date, merchant: cleanMerchant, amount });
             return {
               date,
               merchant: cleanMerchant,
               amount
             };
-          } else {
-            console.log('❌ Failed validation:', { date: !!date, amount: !isNaN(amount), merchant: !!cleanMerchant });
           }
         } catch (error) {
-          console.log('❌ Error parsing tabular transaction:', error);
+          // Skip malformed entries
         }
       }
     }
