@@ -8,7 +8,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { TemplatedSendOfferModal } from '@/components/institution/TemplatedSendOfferModal';
-import { Building2, LogOut, Users, Filter, Mail, BarChart3 } from 'lucide-react';
+import BulkOfferModal from '@/components/institution/BulkOfferModal';
+import { Building2, LogOut, Users, Filter, Mail, BarChart3, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface UserProfile {
@@ -30,6 +31,8 @@ const UserDirectory: React.FC = () => {
   const [error, setError] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [showOfferModal, setShowOfferModal] = useState(false);
+  const [selectedUsers, setSelectedUsers] = useState<UserProfile[]>([]);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const { toast } = useToast();
 
   // Filters
@@ -146,6 +149,39 @@ const UserDirectory: React.FC = () => {
     setSelectedUser(null);
   };
 
+  const handleUserSelect = (user: UserProfile, checked: boolean) => {
+    if (checked) {
+      setSelectedUsers(prev => [...prev, user]);
+    } else {
+      setSelectedUsers(prev => prev.filter(u => u.id !== user.id));
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedUsers(filteredUsers);
+    } else {
+      setSelectedUsers([]);
+    }
+  };
+
+  const handleBulkOffer = () => {
+    if (selectedUsers.length === 0) {
+      toast({
+        title: "No Users Selected",
+        description: "Please select at least one user to send a bulk offer.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setShowBulkModal(true);
+  };
+
+  const handleBulkOfferSuccess = () => {
+    setSelectedUsers([]);
+    setShowBulkModal(false);
+  };
+
   if (!user) {
     return <Navigate to="/institution-login" replace />;
   }
@@ -209,41 +245,63 @@ const UserDirectory: React.FC = () => {
               User Directory ({filteredUsers.length} users)
             </CardTitle>
 
-            {/* Filters */}
-            <div className="flex flex-wrap gap-4 pt-4 border-t border-border">
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-foreground">Filters:</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="students"
-                  checked={showStudentsOnly}
-                  onCheckedChange={(checked) => setShowStudentsOnly(checked === true)}
-                />
-                <label htmlFor="students" className="text-sm text-foreground">
-                  Students Only
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="dei"
-                  checked={showDEIOnly}
-                  onCheckedChange={(checked) => setShowDEIOnly(checked === true)}
-                />
-                <label htmlFor="dei" className="text-sm text-foreground">
-                  DEI Preference
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="green"
-                  checked={showGreenBankingOnly}
-                  onCheckedChange={(checked) => setShowGreenBankingOnly(checked === true)}
-                />
-                <label htmlFor="green" className="text-sm text-foreground">
-                  Green Banking Interest
-                </label>
+            {/* Filters & Bulk Actions */}
+            <div className="space-y-4 pt-4 border-t border-border">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-foreground">Filters:</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="students"
+                      checked={showStudentsOnly}
+                      onCheckedChange={(checked) => setShowStudentsOnly(checked === true)}
+                    />
+                    <label htmlFor="students" className="text-sm text-foreground">
+                      Students Only
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="dei"
+                      checked={showDEIOnly}
+                      onCheckedChange={(checked) => setShowDEIOnly(checked === true)}
+                    />
+                    <label htmlFor="dei" className="text-sm text-foreground">
+                      DEI Preference
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="green"
+                      checked={showGreenBankingOnly}
+                      onCheckedChange={(checked) => setShowGreenBankingOnly(checked === true)}
+                    />
+                    <label htmlFor="green" className="text-sm text-foreground">
+                      Green Banking Interest
+                    </label>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  {selectedUsers.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="px-2 py-1">
+                        {selectedUsers.length} selected
+                      </Badge>
+                      <Button 
+                        size="sm" 
+                        onClick={handleBulkOffer}
+                        className="gap-2"
+                      >
+                        <Send className="h-3 w-3" />
+                        Send Bulk Offer
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </CardHeader>
@@ -258,6 +316,13 @@ const UserDirectory: React.FC = () => {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border">
+                      <th className="text-left p-3 font-medium text-foreground w-12">
+                        <Checkbox
+                          checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
+                          onCheckedChange={handleSelectAll}
+                          aria-label="Select all users"
+                        />
+                      </th>
                       <th className="text-left p-3 font-medium text-foreground">Email</th>
                       <th className="text-center p-3 font-medium text-foreground">Student</th>
                       <th className="text-center p-3 font-medium text-foreground">DEI</th>
@@ -266,11 +331,20 @@ const UserDirectory: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredUsers.map((user) => (
-                      <tr key={user.id} className="border-b border-border/50 hover:bg-muted/50">
-                        <td className="p-3 text-foreground">
-                          {user.email || 'N/A'}
-                        </td>
+                    {filteredUsers.map((user) => {
+                      const isSelected = selectedUsers.some(u => u.id === user.id);
+                      return (
+                        <tr key={user.id} className={`border-b border-border/50 hover:bg-muted/50 ${isSelected ? 'bg-muted/30' : ''}`}>
+                          <td className="p-3">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={(checked) => handleUserSelect(user, checked === true)}
+                              aria-label={`Select ${user.email}`}
+                            />
+                          </td>
+                          <td className="p-3 text-foreground">
+                            {user.email || 'N/A'}
+                          </td>
                         <td className="p-3 text-center">
                           {user.is_student ? (
                             <Badge variant="secondary" className="text-xs">✓</Badge>
@@ -301,9 +375,10 @@ const UserDirectory: React.FC = () => {
                             <Mail className="h-3 w-3" />
                             Send Offer
                           </Button>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -326,6 +401,14 @@ const UserDirectory: React.FC = () => {
             }}
           />
         )}
+
+        <BulkOfferModal
+          isOpen={showBulkModal}
+          onClose={() => setShowBulkModal(false)}
+          selectedUsers={selectedUsers}
+          institutionId={user?.id || ''}
+          onSuccess={handleBulkOfferSuccess}
+        />
     </div>
   );
 };

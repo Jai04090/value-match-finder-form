@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      bulk_offers: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          failed_sends: number
+          id: string
+          institution_id: string
+          scheduled_for: string | null
+          status: string
+          successful_sends: number
+          targeting_filters: Json | null
+          template_id: string | null
+          title: string
+          total_recipients: number
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          failed_sends?: number
+          id?: string
+          institution_id: string
+          scheduled_for?: string | null
+          status?: string
+          successful_sends?: number
+          targeting_filters?: Json | null
+          template_id?: string | null
+          title: string
+          total_recipients?: number
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          failed_sends?: number
+          id?: string
+          institution_id?: string
+          scheduled_for?: string | null
+          status?: string
+          successful_sends?: number
+          targeting_filters?: Json | null
+          template_id?: string | null
+          title?: string
+          total_recipients?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       form_submissions: {
         Row: {
           created_at: string
@@ -76,6 +127,7 @@ export type Database = {
       }
       institution_offers: {
         Row: {
+          bulk_offer_id: string | null
           created_at: string
           description: string | null
           expiry_date: string | null
@@ -89,6 +141,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          bulk_offer_id?: string | null
           created_at?: string
           description?: string | null
           expiry_date?: string | null
@@ -102,6 +155,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          bulk_offer_id?: string | null
           created_at?: string
           description?: string | null
           expiry_date?: string | null
@@ -115,6 +169,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "institution_offers_bulk_offer_id_fkey"
+            columns: ["bulk_offer_id"]
+            isOneToOne: false
+            referencedRelation: "bulk_offers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "institution_offers_institution_id_fkey"
             columns: ["institution_id"]
