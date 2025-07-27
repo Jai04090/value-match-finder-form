@@ -181,15 +181,20 @@ const BankStatementParser = () => {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* File Upload */}
-          <div
-            onDrop={handleDrop}
-            onDragOver={(e) => e.preventDefault()}
-            className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center space-y-4 hover:border-muted-foreground/50 transition-colors"
-          >
-            <Upload className="h-12 w-12 mx-auto text-muted-foreground" />
-            <div>
-              <p className="text-lg font-medium">Drop your bank statement here</p>
-              <p className="text-sm text-muted-foreground">or click to browse files</p>
+          <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center space-y-4 hover:border-muted-foreground/50 transition-colors relative">
+            <div
+              onDrop={handleDrop}
+              onDragOver={(e) => e.preventDefault()}
+              className="relative"
+            >
+              <Upload className="h-12 w-12 mx-auto text-muted-foreground" />
+              <div>
+                <p className="text-lg font-medium">Drop your bank statement here</p>
+                <p className="text-sm text-muted-foreground">or click to browse files</p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Supports PDF and CSV files • All processing happens locally
+              </p>
               <input
                 type="file"
                 accept=".pdf,.csv"
@@ -197,9 +202,6 @@ const BankStatementParser = () => {
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Supports PDF and CSV files • All processing happens locally
-            </p>
           </div>
 
           {file && (
