@@ -296,14 +296,6 @@ const StaffLogin = () => {
           </div>
           
           <div className="mt-6 space-y-4">
-            <Button
-              variant="outline"
-              onClick={handlePublishingQueueClick}
-              className="w-full"
-            >
-              Go to Publishing Queue
-            </Button>
-            
             <div className="text-center text-sm text-muted-foreground">
               <div className="space-y-2">
                 <div>

@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { LogOut, User, Shield, FileText } from 'lucide-react';
+import { LogOut, User, Shield, FileText, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 const Navigation = () => {
@@ -81,6 +81,12 @@ const Navigation = () => {
                     <Button variant="ghost" className="flex items-center gap-2">
                       <FileText className="h-4 w-4" />
                       Create Template
+                    </Button>
+                  </Link>
+                  <Link to="/staff/publishing-queue">
+                    <Button variant="ghost" className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Publishing Queue
                     </Button>
                   </Link>
                 </>
