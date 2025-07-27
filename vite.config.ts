@@ -31,9 +31,13 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
-          utils: ['dompurify']
+          utils: ['dompurify'],
+          pdf: ['pdfjs-dist']
         }
       }
     }
+  },
+  optimizeDeps: {
+    exclude: ['pdfjs-dist']
   }
 }));

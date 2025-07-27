@@ -1,8 +1,20 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import Papa from 'papaparse';
 
-// Configure PDF.js worker with CDN fallback
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Configure PDF.js worker with multiple CDN fallbacks
+const configurePDFWorker = () => {
+  const version = pdfjsLib.version;
+  const workerUrls = [
+    `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.mjs`,
+    `https://cdn.jsdelivr.net/npm/pdfjs-dist@${version}/build/pdf.worker.mjs`,
+    `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.mjs`,
+    `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`
+  ];
+  
+  pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrls[0];
+};
+
+configurePDFWorker();
 
 export class TextExtractor {
   static async extractFromPDF(file: File): Promise<string> {
