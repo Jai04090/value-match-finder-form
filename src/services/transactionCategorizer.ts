@@ -3,27 +3,38 @@ import { RawTransaction, CategorizedTransaction, TransactionCategory, KeywordMap
 export class TransactionCategorizer {
   private static readonly defaultKeywordMap: KeywordMap = {
     Banking: [
-      'deposit', 'interest payment', 'ach credit', 'wire transfer', 'stripe', 'ach debit'
+      'deposit', 'interest payment', 'ach credit', 'wire transfer', 'stripe', 'ach debit',
+      'online transfer', 'transfer', 'bank fee', 'service charge', 'overdraft',
+      'wells fargo', 'checking', 'savings', 'direct deposit', 'payroll'
     ],
     ATM: [
-      'atm withdrawal', 'atm check', 'cash advance', 'atm fee', 'atm deposit'
+      'atm withdrawal', 'atm check', 'cash advance', 'atm fee', 'atm deposit',
+      'atm', 'cash', 'withdrawal', 'teller', 'branch'
     ],
     Retail: [
       'costco', 'cintas', 'office max', 'officemax', 'fedex', 'ups', 'amazon', 
       'walmart', 'target', 'home depot', 'lowes', 'best buy', 'macy', 'nordstrom', 
-      'gap', 'nike', 'apple store', 'cvs', 'walgreens', 'store', 'shop', 'whse'
+      'gap', 'nike', 'apple store', 'cvs', 'walgreens', 'store', 'shop', 'whse',
+      'retail', 'purchase', 'merchant', 'pos', 'sale', 'goods', 'supply',
+      'hardware', 'electronics', 'clothing', 'pharmacy', 'supermarket'
     ],
     Food: [
       'starbucks', '7-eleven', '7 eleven', 'panera', 'panera bread', 'mcdonald', 
       'burger', 'pizza', 'restaurant', 'cafe', 'coffee', 'food', 'grocery', 
-      'market', 'subway', 'chipotle', 'taco', 'wendy'
+      'market', 'subway', 'chipotle', 'taco', 'wendy', 'kfc', 'domino',
+      'dining', 'eatery', 'bistro', 'grill', 'deli', 'bakery', 'bar',
+      'kroger', 'safeway', 'publix', 'whole foods', 'trader joe'
     ],
     Subscriptions: [
       'comcast', 'vivint', 'netflix', 'spotify', 'subscription', 'monthly', 
-      'annual', 'membership', 'recurring', 'at&t', 'att', 'verizon', 'tmobile'
+      'annual', 'membership', 'recurring', 'at&t', 'att', 'verizon', 'tmobile',
+      'internet', 'cable', 'phone', 'cellular', 'streaming', 'software',
+      'saas', 'service', 'plan', 'hulu', 'disney', 'amazon prime'
     ],
     Other: [
-      'check #', 'bill pay', 'payment', 'fee', 'charge', 'deposited or cashed check'
+      'check', 'bill pay', 'payment', 'fee', 'charge', 'deposited or cashed check',
+      'misc', 'miscellaneous', 'unknown', 'adjustment', 'correction', 'reversal',
+      'refund', 'credit memo', 'insurance', 'tax', 'government', 'utility'
     ]
   };
 

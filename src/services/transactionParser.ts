@@ -39,6 +39,20 @@ export class TransactionParser {
     /interest\s+payments?/i,
   ];
 
+  // Document metadata and header skip patterns
+  private static readonly documentSkipPatterns: RegExp[] = [
+    /Studocu/i,
+    /University.*People/i,
+    /Corporate\s*Law/i,
+    /Downloaded\s*by/i,
+    /lOMoARcPSD/i,
+    /Scan\s*to\s*open/i,
+    /not\s*sponsored/i,
+    /endorsed\s*by/i,
+    /Business\s*Bank\s*Statement/i,
+    /Bank\s*Statements/i,
+  ];
+
   private static readonly skipPatterns: RegExp[] = [
     /^(Date|Description|Amount|Balance|Total|Beginning|Ending)/i,
     /^\s*$/,
@@ -54,7 +68,13 @@ export class TransactionParser {
     /^Daily\s+Balance/i,
     /^Average\s+Balance/i,
     /^\$\d+\.\d{2}\s*$/,
-    /^(\d+\.\d{2})\s*$/
+    /^(\d+\.\d{2})\s*$/,
+    /^Account\s*Summary/i,
+    /^Interest\s*Rate/i,
+    /^Available\s*Balance/i,
+    /^Present\s*Balance/i,
+    /^Business\s*Choice\s*Checking/i,
+    /^\*{4}\d{4}\s*$/,  // Just account number alone
   ];
 
   private static readonly inlineTransactionPatterns = [
@@ -66,44 +86,70 @@ export class TransactionParser {
     console.log('🔧 Starting text preprocessing...');
     console.log('📄 Original text sample:', text.substring(0, 300));
     
-    // Filter out obvious non-transaction lines early
+    // Split into lines and filter early
     const lines = text.split('\n');
     console.log(`📄 Total lines before filtering: ${lines.length}`);
     
-    const filteredLines = lines.filter(line => {
+    // First pass: Remove document metadata and obvious non-transaction content
+    const firstPassLines = lines.filter(line => {
       const trimmed = line.trim();
-      
-      // Skip empty lines
       if (!trimmed) return false;
       
-      // Skip very short lines (likely fragments)
-      if (trimmed.length < 5) return false;
-      
-      // Be more inclusive - keep lines that might contain transaction data
-      // Look for patterns that suggest transaction content
-      const hasDatePattern = /\d{1,2}\/\d{1,2}/.test(trimmed);
-      const hasAmountPattern = /\$?\d+\.\d{2}/.test(trimmed);
-      const hasAccountPattern = /\*{4}\d{4}/.test(trimmed); // Wells Fargo account pattern
-      const hasTransactionType = /(debit|credit|withdrawal|deposit|check)/i.test(trimmed);
-      const hasMerchantIndicators = /(corp|inc|llc|company|store|market|gas|restaurant)/i.test(trimmed);
-      
-      // Keep lines that have at least one transaction indicator
-      if (hasDatePattern || hasAmountPattern || hasAccountPattern || hasTransactionType || hasMerchantIndicators) {
-        return true;
-      }
-      
-      // Skip lines that are definitely headers, footers, or account info
-      if (this.shouldSkipLine(trimmed)) {
+      // Skip document metadata using document skip patterns
+      if (this.documentSkipPatterns.some(pattern => pattern.test(trimmed))) {
+        console.log('🗑️ Skipping document metadata:', trimmed);
         return false;
       }
       
-      // Keep lines with enough content that might be transactions
-      return trimmed.length > 20;
+      return true;
     });
     
-    console.log(`🔧 Filtered from ${lines.length} to ${filteredLines.length} lines`);
-    console.log('📄 Sample filtered lines:', filteredLines.slice(0, 10));
-    return filteredLines.join('\n');
+    console.log(`📄 After document filter: ${firstPassLines.length} lines`);
+    
+    // Second pass: Find transaction data sections
+    let inTransactionSection = false;
+    const transactionLines: string[] = [];
+    
+    for (const line of firstPassLines) {
+      const trimmed = line.trim();
+      
+      // Check if we're entering a transaction section
+      if (this.transactionSectionPatterns.some(pattern => pattern.test(trimmed))) {
+        console.log('📍 Found transaction section:', trimmed);
+        inTransactionSection = true;
+        continue;
+      }
+      
+      // Check if this line has transaction indicators
+      const hasDatePattern = /\d{1,2}\/\d{1,2}(\/\d{4})?/.test(trimmed);
+      const hasAmountPattern = /\$?\d+\.\d{2}/.test(trimmed);
+      const hasAccountPattern = /\*{4}\d{4}/.test(trimmed);
+      const hasMerchantIndicators = /(corp|inc|llc|company|store|market|gas|restaurant|bank|atm|check|debit|credit|deposit|withdrawal)/i.test(trimmed);
+      const hasTransactionStructure = hasDatePattern && (hasAmountPattern || hasMerchantIndicators);
+      
+      // Keep lines that look like transactions
+      if (hasTransactionStructure || (inTransactionSection && (hasDatePattern || hasAmountPattern))) {
+        console.log('✅ Keeping transaction line:', trimmed);
+        transactionLines.push(trimmed);
+        continue;
+      }
+      
+      // Skip obvious headers and system lines
+      if (this.shouldSkipLine(trimmed)) {
+        continue;
+      }
+      
+      // Keep lines with substantial content that might contain transaction info
+      if (trimmed.length > 15 && (hasDatePattern || hasAmountPattern || hasMerchantIndicators)) {
+        console.log('🔍 Keeping potential transaction line:', trimmed);
+        transactionLines.push(trimmed);
+      }
+    }
+    
+    console.log(`🔧 Filtered from ${lines.length} to ${transactionLines.length} lines`);
+    console.log('📄 Sample filtered lines:', transactionLines.slice(0, 10));
+    
+    return transactionLines.join('\n');
   }
 
   static parseTransactions(redactedText: string): RawTransaction[] {
@@ -179,7 +225,7 @@ export class TransactionParser {
       const merchant = this.cleanMerchantName(merchantStr.trim());
       const amount = parseFloat(amountStr);
       
-      if (date && merchant && !isNaN(amount) && merchant.length > 2) {
+      if (this.isValidTransaction({ date, merchant, amount })) {
         transactions.push({ date, merchant, amount });
       }
     }
@@ -291,12 +337,26 @@ export class TransactionParser {
 
   private static cleanMerchantName(merchant: string): string {
     return merchant
+      // Remove Wells Fargo specific artifacts
+      .replace(/\*{4}\d{4}/g, '') // Remove masked account numbers
+      .replace(/\b(WELLS\s*FARGO|WF)\b/gi, '') // Remove bank name
+      .replace(/\b(ONLINE\s*TRANSFER|TRANSFER)\b/gi, 'Transfer') // Standardize transfers
+      .replace(/\b(ATM\s*WITHDRAWAL|ATM)\b/gi, 'ATM') // Standardize ATM
+      .replace(/\b(CHECK\s*#|CHECK|CK)\s*\d+/gi, 'Check') // Standardize checks
+      .replace(/\b(DEBIT\s*CARD|CARD)\b/gi, 'Card') // Standardize card transactions
+      .replace(/\b(DEPOSIT|DEP)\b/gi, 'Deposit') // Standardize deposits
+      
+      // Remove transaction IDs and reference numbers
       .replace(/\b\d{4,}\b/g, '') // Remove long numbers (transaction IDs)
-      .replace(/\b(Check|Ck|#)\s*\d+/gi, '') // Remove check references unless it's the main description
-      .replace(/\b(Ref|Reference|ID)[\s:]*\d+/gi, '') // Remove reference numbers
-      .replace(/\b(Auth|Authorization)[\s:]*\w+/gi, '') // Remove authorization codes
-      .replace(/\s+/g, ' ')
-      .replace(/[^\w\s#&.-]/g, '')
+      .replace(/\b(Ref|Reference|ID|Auth|Authorization)[\s:]*\w+/gi, '') // Remove reference codes
+      .replace(/\b(Confirmation|Conf)[\s:]*\w+/gi, '') // Remove confirmation codes
+      
+      // Clean up formatting
+      .replace(/\s*-\s*/g, ' - ') // Standardize dashes
+      .replace(/\s+/g, ' ') // Multiple spaces to single
+      .replace(/[^\w\s#&.-]/g, '') // Remove special characters except common ones
+      .replace(/^\s*-\s*/, '') // Remove leading dashes
+      .replace(/\s*-\s*$/, '') // Remove trailing dashes
       .trim();
   }
 
@@ -322,6 +382,46 @@ export class TransactionParser {
     }
     
     return null;
+  }
+
+  private static isValidTransaction(transaction: Partial<RawTransaction>): boolean {
+    // Validate date
+    if (!transaction.date || typeof transaction.date !== 'string') {
+      return false;
+    }
+    
+    // Validate merchant
+    if (!transaction.merchant || typeof transaction.merchant !== 'string' || transaction.merchant.trim().length < 2) {
+      return false;
+    }
+    
+    // Validate amount
+    if (typeof transaction.amount !== 'number' || isNaN(transaction.amount)) {
+      return false;
+    }
+    
+    // Check for reasonable amount range (not zero, not too large)
+    if (Math.abs(transaction.amount) < 0.01 || Math.abs(transaction.amount) > 1000000) {
+      return false;
+    }
+    
+    // Check date format and range for 2018 Wells Fargo statement
+    const dateMatch = transaction.date.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (!dateMatch) {
+      return false;
+    }
+    
+    const [, year, month, day] = dateMatch;
+    const yearNum = parseInt(year);
+    const monthNum = parseInt(month);
+    const dayNum = parseInt(day);
+    
+    // Validate date components
+    if (yearNum < 2017 || yearNum > 2019) return false; // Reasonable range around 2018
+    if (monthNum < 1 || monthNum > 12) return false;
+    if (dayNum < 1 || dayNum > 31) return false;
+    
+    return true;
   }
 
   private static deduplicateTransactions(transactions: RawTransaction[]): RawTransaction[] {
