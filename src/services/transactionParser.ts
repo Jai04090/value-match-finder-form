@@ -67,7 +67,45 @@ export class TransactionParser {
     /^subtotal/i,                                   // Subtotals
   ];
 
-  // Tabular transaction patterns for structured data
+  // Inline transaction patterns for extracting from long combined lines
+  private static readonly inlineTransactionPatterns = [
+    // Look for date + description + amount patterns within text
+    /(\d{2}-\d{2})\s+([^0-9]+?)\s+(\d{1,3}(?:,\d{3})*\.\d{2})/g,
+    /(\d{1,2}\/\d{1,2})\s+([^0-9]+?)\s+\$?(\d{1,3}(?:,\d{3})*\.\d{2})/g,
+  ];
+
+  private static preprocessText(text: string): string {
+    console.log('🔧 Preprocessing text...');
+    
+    // First, try to extract inline transactions from the long lines
+    const inlineTransactions: string[] = [];
+    
+    // Look for transaction patterns within the text
+    for (const pattern of this.inlineTransactionPatterns) {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const [fullMatch, date, merchant, amount] = match;
+        console.log('🔍 Found inline transaction:', fullMatch);
+        inlineTransactions.push(fullMatch);
+      }
+    }
+    
+    if (inlineTransactions.length > 0) {
+      console.log('✅ Found', inlineTransactions.length, 'inline transactions');
+      // Add the found transactions as separate lines
+      return text + '\n' + inlineTransactions.join('\n');
+    }
+    
+    // If no inline transactions found, try to split on common separators
+    let processed = text
+      .replace(/\s{3,}/g, '\n')  // Replace 3+ spaces with newlines
+      .replace(/\t+/g, '\n')     // Replace tabs with newlines
+      .replace(/\n{3,}/g, '\n\n') // Normalize multiple newlines
+      .trim();
+    
+    console.log('🔧 Preprocessing complete');
+    return processed;
+  }
   private static readonly tabularPatterns = [
     // Wells Fargo format: "07-06 Bill Pay Don Paumier 682.98"
     /^(\d{2}-\d{2})\s+(.+?)\s+(\d{1,3}(?:,\d{3})*\.\d{2})$/,
@@ -83,14 +121,16 @@ export class TransactionParser {
     console.log('📄 Starting transaction parsing...');
     console.log('📄 Input text length:', redactedText.length);
     
-    const lines = redactedText.split('\n').map(line => line.trim()).filter(Boolean);
-    console.log('📄 Total lines to process:', lines.length);
+    // Preprocess text to handle PDF extraction issues
+    const preprocessedText = this.preprocessText(redactedText);
+    const lines = preprocessedText.split('\n').map(line => line.trim()).filter(Boolean);
+    console.log('📄 Total lines after preprocessing:', lines.length);
     
     const transactions: RawTransaction[] = [];
     let inTransactionSection = false;
     let currentYear = new Date().getFullYear();
     
-    console.log('📄 Sample lines:', lines.slice(0, 10));
+    console.log('📄 First 10 lines after preprocessing:', lines.slice(0, 10));
 
     // First pass: try to extract transactions using tabular patterns
     for (let i = 0; i < lines.length; i++) {
