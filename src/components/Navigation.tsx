@@ -61,12 +61,6 @@ const Navigation = () => {
         </Link>
         
         <div className="flex items-center gap-4">
-          <Link to="/bank-statement-parser">
-            <Button variant="ghost" className="flex items-center gap-2">
-              <Calculator className="h-4 w-4" />
-              Statement Parser
-            </Button>
-          </Link>
           {user ? (
             <>
               {userRole === 'staff' && (
@@ -98,12 +92,20 @@ const Navigation = () => {
                 </>
               )}
               {userRole === 'user' && (
-                <Link to="/preferences">
-                  <Button variant="ghost" className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    My Preferences
-                  </Button>
-                </Link>
+                <>
+                  <Link to="/bank-statement-parser">
+                    <Button variant="ghost" className="flex items-center gap-2">
+                      <Calculator className="h-4 w-4" />
+                      Statement Parser
+                    </Button>
+                  </Link>
+                  <Link to="/preferences">
+                    <Button variant="ghost" className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      My Preferences
+                    </Button>
+                  </Link>
+                </>
               )}
               <Button 
                 variant="outline" 

@@ -159,7 +159,7 @@ const App = () => (
             <Route 
               path="/bank-statement-parser" 
               element={
-                <ProtectedRoute requireAuth={false}>
+                <ProtectedRoute requireRole="user">
                   <BankStatementParserPage />
                 </ProtectedRoute>
               } 
