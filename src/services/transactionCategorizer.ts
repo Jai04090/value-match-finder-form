@@ -3,32 +3,28 @@ import { RawTransaction, CategorizedTransaction, TransactionCategory, KeywordMap
 export class TransactionCategorizer {
   private static readonly defaultKeywordMap: KeywordMap = {
     Banking: [
-      'bill pay', 'interest payment', 'service charge', 'maintenance fee', 
-      'overdraft', 'transfer', 'ach', 'wire', 'deposit', 'check', 'fee',
-      'interest', 'bank', 'credit', 'debit', 'payment', 'balance'
+      'deposit', 'interest payment', 'ach credit', 'wire transfer', 'stripe'
     ],
     ATM: [
-      'atm withdrawal', 'cash advance', 'atm fee', 'atm', 'cash back',
-      'withdrawal', 'cash'
+      'atm withdrawal', 'atm check', 'cash advance', 'atm fee'
     ],
     Retail: [
-      'fedex', 'ups', 'amazon', 'walmart', 'target', 'costco', 'purchase',
-      'card purchase', 'pos', 'point of sale', 'home depot', 'lowes', 'best buy',
-      'macy', 'nordstrom', 'gap', 'nike', 'apple store', 'cvs', 'walgreens',
-      'store', 'shop', 'retail', 'clothing', 'apparel'
+      'costco', 'cintas', 'office max', 'officemax', 'fedex', 'ups', 'amazon', 
+      'walmart', 'target', 'home depot', 'lowes', 'best buy', 'macy', 'nordstrom', 
+      'gap', 'nike', 'apple store', 'cvs', 'walgreens', 'store', 'shop'
     ],
     Food: [
-      'starbucks', 'mcdonald', 'burger', 'pizza', 'restaurant', 'cafe', 'coffee',
-      'food', 'grocery', 'market', 'deli', 'bakery', 'dining', 'kitchen',
-      'subway', 'domino', 'kfc', 'taco', 'wendy', 'chipotle', 'panera',
-      'uber eats', 'doordash', 'grubhub', 'postmates'
+      'starbucks', '7-eleven', '7 eleven', 'panera', 'panera bread', 'mcdonald', 
+      'burger', 'pizza', 'restaurant', 'cafe', 'coffee', 'food', 'grocery', 
+      'market', 'subway', 'chipotle', 'taco', 'wendy'
     ],
     Subscriptions: [
-      'netflix', 'spotify', 'hulu', 'disney', 'amazon prime', 'youtube',
-      'subscription', 'monthly', 'annual', 'membership', 'service',
-      'adobe', 'microsoft', 'google', 'dropbox', 'icloud', 'recurring'
+      'comcast', 'vivint', 'netflix', 'spotify', 'subscription', 'monthly', 
+      'annual', 'membership', 'recurring'
     ],
-    Other: []
+    Other: [
+      'check', 'bill pay', 'payment', 'fee', 'charge'
+    ]
   };
 
   static categorizeTransactions(
@@ -50,9 +46,21 @@ export class TransactionCategorizer {
   ): TransactionCategory {
     const merchantLower = transaction.merchant.toLowerCase();
     
-    // Check each category's keywords
-    for (const [category, keywords] of Object.entries(keywordMap)) {
-      if (category === 'Other') continue; // Skip 'Other' category in the loop
+    // Special handling for ATM transactions first
+    if (merchantLower.includes('atm')) {
+      return 'ATM';
+    }
+    
+    // Check for check transactions
+    if (merchantLower.includes('check #') || merchantLower.includes('bill pay')) {
+      return 'Other';
+    }
+    
+    // Check categories in specific order to avoid Banking over-classification
+    const categoriesOrder: (keyof KeywordMap)[] = ['Food', 'Retail', 'Subscriptions', 'ATM', 'Other', 'Banking'];
+    
+    for (const category of categoriesOrder) {
+      const keywords = keywordMap[category] || [];
       
       const hasMatch = keywords.some(keyword => 
         merchantLower.includes(keyword.toLowerCase())

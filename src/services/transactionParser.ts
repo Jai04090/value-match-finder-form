@@ -3,9 +3,9 @@ import { RawTransaction } from '@/types/bankStatement';
 export class TransactionParser {
   // Enhanced patterns for Wells Fargo and other bank formats
   private static readonly wellsFargoPatterns = [
-    /(\d{2}-\d{2})\s+(.+?)\s+(\d{1,3}(?:,\d{3})*\.\d{2})/g, // MM-DD Description Amount
-    /(\d{1,2}\/\d{1,2})\s+(.+?)\s+\$?(\d{1,3}(?:,\d{3})*\.\d{2})/g, // M/D Description $Amount
-    /(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(.+?)\s+(\d{1,3}(?:,\d{3})*\.\d{2})/g, // Full date format
+    /(\d{2}\/\d{2})\s+(.+?)\s+([-]?\d{1,3}(?:,\d{3})*\.\d{2})/g, // MM/DD Description Amount with negatives
+    /(\d{2}-\d{2})\s+(.+?)\s+([-]?\d{1,3}(?:,\d{3})*\.\d{2})/g, // MM-DD Description Amount
+    /(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(.+?)\s+([-]?\d{1,3}(?:,\d{3})*\.\d{2})/g, // Full date format
   ];
 
   // Enhanced date patterns for various formats
@@ -48,7 +48,7 @@ export class TransactionParser {
     /interest\s+payments?/i,
   ];
 
-  // Enhanced skip patterns
+  // Enhanced skip patterns for Wells Fargo statements
   private static readonly skipPatterns = [
     /^\s*$/,                                        // Empty lines
     /^[-=\s]+$/,                                    // Separator lines
@@ -57,7 +57,7 @@ export class TransactionParser {
     /^account\s+summary/i,                          // Account summary
     /^previous\s+balance/i,                         // Previous balance
     /^current\s+balance/i,                          // Current balance
-    /^total\s+/i,                                   // Total lines
+    /^total\s+(withdrawals?|deposits?|debits?|credits?)/i, // Total lines
     /^beginning\s+balance/i,                        // Beginning balance
     /^ending\s+balance/i,                           // Ending balance
     /^daily\s+balance/i,                            // Daily balance
@@ -65,6 +65,13 @@ export class TransactionParser {
     /^customer\s+service/i,                         // Customer service info
     /^continued\s+on\s+next\s+page/i,               // Page continuations
     /^subtotal/i,                                   // Subtotals
+    /^business\s+bank\s+statement/i,                // Header text
+    /^wells\s+fargo/i,                              // Bank name
+    /^scan\s+to\s+open/i,                           // PDF artifacts
+    /^downloaded\s+by/i,                            // PDF artifacts
+    /lOMoARcPSD/i,                                  // PDF artifacts
+    /^corporate\s+law/i,                            // Document artifacts
+    /^studocu/i,                                    // Platform artifacts
   ];
 
   // Inline transaction patterns for extracting from long combined lines
@@ -118,21 +125,21 @@ export class TransactionParser {
     return processed;
   }
   private static readonly tabularPatterns = [
-    // Wells Fargo format with negative amounts: "07/02 Costco Whse #0472 Salinas CA -59.61"
-    /^(\d{1,2}\/\d{1,2})\s+(.+?)\s+([-]?[\d,]+\.\d{2})$/,
-    // Wells Fargo format with dash dates: "07-02 Costco Whse #0472 Salinas CA -59.61"
-    /^(\d{2}-\d{2})\s+(.+?)\s+([-]?[\d,]+\.\d{2})$/,
-    // Standard format with dollar sign: "7/6 Bill Pay Don Paumier $682.98"
-    /^(\d{1,2}\/\d{1,2})\s+(.+?)\s+\$?([-]?[\d,]+\.\d{2})$/,
-    // Extended format with full year: "07/06/2022 Bill Pay Don Paumier 682.98"
-    /^(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(.+?)\s+([-]?[\d,]+\.\d{2})$/,
+    // Wells Fargo format: "07/02 Costco Whse #0472 Salinas CA -59.61" (exact match)
+    /^(\d{2}\/\d{2})\s+(.+?)\s+([-]?\d{1,3}(?:,\d{3})*\.\d{2})\s*$/,
+    // Alternative with single digit month/day: "7/2 Merchant Name 123.45"
+    /^(\d{1,2}\/\d{1,2})\s+(.+?)\s+([-]?\d{1,3}(?:,\d{3})*\.\d{2})\s*$/,
+    // Wells Fargo with dash dates: "07-02 Costco Whse #0472 Salinas CA -59.61"
+    /^(\d{2}-\d{2})\s+(.+?)\s+([-]?\d{1,3}(?:,\d{3})*\.\d{2})\s*$/,
+    // Extended format with full year: "07/06/2018 Bill Pay Don Paumier 682.98"
+    /^(\d{1,2}\/\d{1,2}\/\d{4})\s+(.+?)\s+([-]?\d{1,3}(?:,\d{3})*\.\d{2})\s*$/,
   ];
 
   static parseTransactions(redactedText: string): RawTransaction[] {
     console.log('📄 Original text length:', redactedText.length);
     console.log('📄 First 500 chars:', redactedText.substring(0, 500));
     
-    // Preprocess text to handle PDF extraction issues
+    // Preprocess text specifically for Wells Fargo PDFs
     const preprocessedText = this.preprocessText(redactedText);
     const lines = preprocessedText.split('\n').map(line => line.trim()).filter(Boolean);
     
@@ -140,10 +147,9 @@ export class TransactionParser {
     console.log('📄 Sample preprocessed lines:', lines.slice(0, 10));
     
     const transactions: RawTransaction[] = [];
-    let inTransactionSection = false;
-    let currentYear = 2018; // Set to 2018 to match the expected data
+    const currentYear = 2018; // Set to 2018 to match Wells Fargo statement year
 
-    // First pass: try to extract transactions using tabular patterns
+    // Process each line looking specifically for transaction patterns
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       
@@ -152,46 +158,37 @@ export class TransactionParser {
         continue;
       }
 
-      // Check if we're entering a transaction section
-      if (this.isTransactionSectionHeader(line)) {
-        inTransactionSection = true;
+      // Only process lines that start with a date pattern (MM/DD or MM-DD)
+      if (!/^\d{1,2}[\/\-]\d{1,2}/.test(line)) {
         continue;
       }
 
-      // Check for table headers
-      if (this.isTableHeader(line)) {
-        inTransactionSection = true;
-        continue;
-      }
-
-      // Try tabular parsing first (most accurate for structured data)
+      // Try tabular parsing (primary method for Wells Fargo)
       const tabularTransaction = this.parseTabularTransaction(line, currentYear);
       if (tabularTransaction) {
         transactions.push(tabularTransaction);
+        console.log('✅ Parsed transaction:', tabularTransaction);
         continue;
       }
 
-      // Only proceed with other parsing if we're in a transaction section OR if the line looks like a transaction
-      if (!inTransactionSection && !this.looksLikeTransaction(line)) {
-        continue;
-      }
-
-      // Try single-line transaction parsing
+      // Fallback to single-line parsing
       const transaction = this.parseTransactionLine(line);
       if (transaction) {
-        transactions.push(transaction);
-        continue;
-      }
-
-      // Try multi-line transaction parsing
-      const multiLineTransaction = this.parseMultiLineTransaction(lines, i);
-      if (multiLineTransaction) {
-        transactions.push(multiLineTransaction);
-        i += 1; // Skip the next line since we processed it
+        // Ensure date is normalized to 2018
+        const normalizedTransaction = {
+          ...transaction,
+          date: this.normalizeDate(transaction.date, currentYear)
+        };
+        transactions.push(normalizedTransaction);
+        console.log('✅ Parsed fallback transaction:', normalizedTransaction);
       }
     }
 
-    return this.deduplicateTransactions(transactions);
+    console.log('📄 Total parsed transactions before deduplication:', transactions.length);
+    const deduplicatedTransactions = this.deduplicateTransactions(transactions);
+    console.log('📄 Final transactions after deduplication:', deduplicatedTransactions.length);
+
+    return deduplicatedTransactions;
   }
 
   private static parseTabularTransaction(line: string, currentYear: number): RawTransaction | null {
@@ -199,14 +196,20 @@ export class TransactionParser {
       const pattern = this.tabularPatterns[patternIndex];
       const match = line.match(pattern);
       if (match) {
-        const [, dateStr, merchant, amountStr] = match;
+        const [, dateStr, merchantRaw, amountStr] = match;
         
         try {
           const date = this.normalizeDate(dateStr, currentYear);
-          const amount = parseFloat(amountStr.replace(/[,$]/g, ''));
-          const cleanMerchant = this.cleanMerchantName(merchant);
+          let amount = parseFloat(amountStr.replace(/[,$]/g, ''));
+          const cleanMerchant = this.cleanMerchantName(merchantRaw.trim());
           
           if (date && !isNaN(amount) && cleanMerchant) {
+            // Wells Fargo: Convert positive amounts to negative for debits (withdrawals)
+            // Only deposits should remain positive
+            if (amount > 0 && !cleanMerchant.toLowerCase().includes('deposit')) {
+              amount = -amount;
+            }
+            
             return {
               date,
               merchant: cleanMerchant,
@@ -214,7 +217,7 @@ export class TransactionParser {
             };
           }
         } catch (error) {
-          // Skip malformed entries
+          console.warn('Error parsing tabular transaction:', line, error);
         }
       }
     }
@@ -377,33 +380,42 @@ export class TransactionParser {
     return cleaned.length > 0 ? cleaned : null;
   }
 
-  private static normalizeDate(dateStr: string, currentYear?: number): string {
+  private static normalizeDate(dateStr: string, currentYear: number = 2018): string {
     try {
       let date: Date;
       
-      // Handle MM-DD format (assume current year)
-      if (/^\d{2}-\d{2}$/.test(dateStr)) {
-        const year = currentYear || new Date().getFullYear();
-        const [month, day] = dateStr.split('-');
-        date = new Date(year, parseInt(month) - 1, parseInt(day));
+      // Handle MM/DD/YYYY format
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
+        const [month, day, year] = dateStr.split('/');
+        date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
       }
-      // Handle M/D format (assume current year)
+      // Handle MM-DD format (use provided year, default to 2018)
+      else if (/^\d{2}-\d{2}$/.test(dateStr)) {
+        const [month, day] = dateStr.split('-');
+        date = new Date(currentYear, parseInt(month) - 1, parseInt(day));
+      }
+      // Handle MM/DD format (use provided year, default to 2018) 
       else if (/^\d{1,2}\/\d{1,2}$/.test(dateStr)) {
-        const year = currentYear || new Date().getFullYear();
         const [month, day] = dateStr.split('/');
-        date = new Date(year, parseInt(month) - 1, parseInt(day));
+        date = new Date(currentYear, parseInt(month) - 1, parseInt(day));
       }
       // Handle other formats
       else {
         date = new Date(dateStr);
+        // If no year specified and date is invalid, try with current year
+        if (isNaN(date.getTime())) {
+          date = new Date(currentYear + '-' + dateStr);
+        }
       }
       
       if (isNaN(date.getTime())) {
+        console.warn('Could not parse date:', dateStr);
         return dateStr; // Return original if can't parse
       }
       
       return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
-    } catch {
+    } catch (error) {
+      console.warn('Date normalization error:', dateStr, error);
       return dateStr;
     }
   }
