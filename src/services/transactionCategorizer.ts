@@ -5,25 +5,28 @@ export class TransactionCategorizer {
     Banking: [
       'deposit', 'interest payment', 'ach credit', 'wire transfer', 'stripe', 'ach debit',
       'online transfer', 'transfer', 'bank fee', 'direct deposit', 'payroll',
-      'wells fargo', 'checking', 'savings', 'account maintenance'
+      'wells fargo', 'checking', 'savings', 'account maintenance', 'bank'
     ],
     ATM: [
       'atm withdrawal', 'atm check', 'cash advance', 'atm fee', 'atm deposit',
-      'atm', 'cash withdrawal', 'teller', 'branch withdrawal', 'cash advance fee'
+      'atm', 'cash withdrawal', 'teller', 'branch withdrawal', 'cash advance fee',
+      'cash deposit'
     ],
     Retail: [
       'costco', 'cintas', 'office max', 'officemax', 'fedex', 'ups', 'amazon', 
       'walmart', 'target', 'home depot', 'lowes', 'best buy', 'macy', 'nordstrom', 
       'gap', 'nike', 'apple store', 'cvs', 'walgreens', 'store', 'shop', 'whse',
       'retail', 'purchase', 'merchant', 'pos', 'sale', 'goods', 'supply',
-      'hardware', 'electronics', 'clothing', 'pharmacy', 'supermarket', 'warehouse'
+      'hardware', 'electronics', 'clothing', 'pharmacy', 'supermarket', 'warehouse',
+      'pets', 'pet store', 'grooming', 'veterinary', 'vet', 'jurassic', 'animal'
     ],
     Food: [
       'starbucks', '7-eleven', '7 eleven', 'panera', 'panera bread', 'mcdonald', 
       'burger', 'pizza', 'restaurant', 'cafe', 'coffee', 'food', 'grocery', 
       'market', 'subway', 'chipotle', 'taco', 'wendy', 'kfc', 'domino',
       'dining', 'eatery', 'bistro', 'grill', 'deli', 'bakery', 'bar',
-      'kroger', 'safeway', 'publix', 'whole foods', 'trader joe', 'gas station'
+      'kroger', 'safeway', 'publix', 'whole foods', 'trader joe', 'gas station',
+      'eleven'
     ],
     Subscriptions: [
       'comcast', 'vivint', 'netflix', 'spotify', 'subscription', 'monthly', 
@@ -33,12 +36,12 @@ export class TransactionCategorizer {
     ],
     Check: [
       'check #', 'check number', 'deposited or cashed check', 'check payment',
-      'check deposit', 'check withdrawal', 'personal check', 'cashier check'
+      'check deposit', 'check withdrawal', 'personal check', 'cashier check', 'check'
     ],
     Fees: [
       'overdraft', 'service charge', 'maintenance fee', 'monthly fee', 'annual fee',
       'transaction fee', 'processing fee', 'penalty', 'late fee', 'nsf fee',
-      'returned item', 'wire fee', 'stop payment', 'account fee'
+      'returned item', 'wire fee', 'stop payment', 'account fee', 'insufficient funds'
     ],
     Other: [
       'bill pay', 'payment', 'misc', 'miscellaneous', 'unknown', 'adjustment', 
@@ -66,32 +69,38 @@ export class TransactionCategorizer {
   ): TransactionCategory {
     const merchantLower = transaction.merchant.toLowerCase();
     
-    // Special handling for ATM transactions first (most specific)
+    // Enhanced ATM detection - most specific patterns first
     if (merchantLower.includes('atm withdrawal') || 
         merchantLower.includes('atm check') || 
         merchantLower.includes('atm deposit') ||
-        merchantLower.includes('atm fee')) {
+        merchantLower.includes('atm fee') ||
+        merchantLower.includes('cash withdrawal') ||
+        merchantLower.includes('cash deposit') ||
+        /atm\s*(withdrawal|deposit|check)/i.test(transaction.merchant)) {
       return 'ATM';
     }
     
-    // Check for check transactions first
+    // Enhanced check detection
     if (merchantLower.includes('check #') || 
         merchantLower.includes('check number') ||
         merchantLower.includes('deposited or cashed check') ||
-        merchantLower.includes('check payment')) {
+        merchantLower.includes('check payment') ||
+        /check\s*#?\d+/i.test(transaction.merchant)) {
       return 'Check';
     }
     
-    // Check for fees
+    // Enhanced fee detection
     if (merchantLower.includes('overdraft') ||
         merchantLower.includes('service charge') ||
         merchantLower.includes('maintenance fee') ||
         merchantLower.includes('nsf fee') ||
-        merchantLower.includes('returned item')) {
+        merchantLower.includes('returned item') ||
+        merchantLower.includes('insufficient funds') ||
+        merchantLower.includes('penalty')) {
       return 'Fees';
     }
     
-    // Check categories in specific order to avoid Banking over-classification
+    // Check categories in specific order to reduce "Other" usage
     const categoriesOrder: (keyof KeywordMap)[] = ['Check', 'Fees', 'ATM', 'Food', 'Retail', 'Subscriptions', 'Banking', 'Other'];
     
     for (const category of categoriesOrder) {
@@ -104,6 +113,17 @@ export class TransactionCategorizer {
       if (hasMatch) {
         return category as TransactionCategory;
       }
+    }
+    
+    // Final fallback - try partial matching for common patterns
+    if (merchantLower.includes('market') || merchantLower.includes('grocery')) {
+      return 'Food';
+    }
+    if (merchantLower.includes('store') || merchantLower.includes('shop')) {
+      return 'Retail';
+    }
+    if (merchantLower.includes('service') && !merchantLower.includes('fee')) {
+      return 'Subscriptions';
     }
     
     // Default to 'Other' if no matches found

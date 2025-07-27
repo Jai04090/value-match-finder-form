@@ -39,6 +39,21 @@ export class PIIRedactor {
     cleanedText = cleanedText.replace(/\[REDACTED_ADDRESS\]\s+\d+/g, '[REDACTED_ADDRESS]');
     cleanedText = cleanedText.replace(/\[REDACTED_EMAIL\]\s+[A-Za-z0-9\s]*\d+/g, '[REDACTED_EMAIL]');
     
+    // Enhanced cleanup for address fragments like "/2 1255", ZIP codes, state codes
+    cleanedText = cleanedText.replace(/\[REDACTED_ADDRESS\][\/\s]+\d+\s*\d*/g, '[REDACTED_ADDRESS]');
+    cleanedText = cleanedText.replace(/\[REDACTED_ADDRESS\]\s*[A-Z]{2}[\/\s]*\d*/g, '[REDACTED_ADDRESS]');
+    cleanedText = cleanedText.replace(/\[REDACTED_PHONE\][\/\s]+[A-Z]{2}[\/\s]*\d*/g, '[REDACTED_PHONE]');
+    
+    // Remove ZIP codes and fragments after any redacted pattern
+    cleanedText = cleanedText.replace(/\[REDACTED_[A-Z]+\][\/\s]*\d{2,5}[\/\s]*\d*/g, (match) => {
+      return match.match(/\[REDACTED_[A-Z]+\]/)?.[0] || match;
+    });
+    
+    // Remove punctuation and number fragments after redacted content
+    cleanedText = cleanedText.replace(/\[REDACTED_[A-Z]+\][\/,\s]*[A-Z]{1,2}[\/,\s]*\d*/g, (match) => {
+      return match.match(/\[REDACTED_[A-Z]+\]/)?.[0] || match;
+    });
+    
     // Remove standalone digits that might be fragments
     cleanedText = cleanedText.replace(/\[REDACTED_[A-Z]+\]\s+\d{1,4}(?!\d)/g, (match) => {
       return match.replace(/\s+\d{1,4}$/, '');
