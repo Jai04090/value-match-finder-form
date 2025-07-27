@@ -2,8 +2,20 @@ import { RawTransaction, CategorizedTransaction, TransactionCategory, KeywordMap
 
 export class TransactionCategorizer {
   private static readonly defaultKeywordMap: KeywordMap = {
+    Banking: [
+      'bill pay', 'interest payment', 'service charge', 'maintenance fee', 
+      'overdraft', 'transfer', 'ach', 'wire', 'deposit', 'check', 'fee',
+      'interest', 'bank', 'credit', 'debit', 'payment', 'balance'
+    ],
     ATM: [
-      'atm withdrawal', 'cash advance', 'atm fee', 'atm', 'cash', 'withdrawal'
+      'atm withdrawal', 'cash advance', 'atm fee', 'atm', 'cash back',
+      'withdrawal', 'cash'
+    ],
+    Retail: [
+      'fedex', 'ups', 'amazon', 'walmart', 'target', 'costco', 'purchase',
+      'card purchase', 'pos', 'point of sale', 'home depot', 'lowes', 'best buy',
+      'macy', 'nordstrom', 'gap', 'nike', 'apple store', 'cvs', 'walgreens',
+      'store', 'shop', 'retail', 'clothing', 'apparel'
     ],
     Food: [
       'starbucks', 'mcdonald', 'burger', 'pizza', 'restaurant', 'cafe', 'coffee',
@@ -11,19 +23,10 @@ export class TransactionCategorizer {
       'subway', 'domino', 'kfc', 'taco', 'wendy', 'chipotle', 'panera',
       'uber eats', 'doordash', 'grubhub', 'postmates'
     ],
-    Retail: [
-      'amazon', 'walmart', 'target', 'costco', 'home depot', 'lowes', 'best buy',
-      'macy', 'nordstrom', 'gap', 'nike', 'apple store', 'cvs', 'walgreens',
-      'store', 'shop', 'retail', 'purchase', 'clothing', 'apparel'
-    ],
     Subscriptions: [
       'netflix', 'spotify', 'hulu', 'disney', 'amazon prime', 'youtube',
       'subscription', 'monthly', 'annual', 'membership', 'service',
-      'adobe', 'microsoft', 'google', 'dropbox', 'icloud'
-    ],
-    Banking: [
-      'fee', 'service charge', 'interest', 'maintenance', 'overdraft', 'transfer',
-      'check', 'deposit', 'credit', 'debit', 'payment', 'balance'
+      'adobe', 'microsoft', 'google', 'dropbox', 'icloud', 'recurring'
     ],
     Other: []
   };
@@ -36,7 +39,8 @@ export class TransactionCategorizer {
     
     return transactions.map(transaction => ({
       ...transaction,
-      category: this.categorizeTransaction(transaction, keywordMap)
+      category: this.categorizeTransaction(transaction, keywordMap),
+      type: this.determineTransactionType(transaction)
     }));
   }
 
@@ -74,13 +78,26 @@ export class TransactionCategorizer {
     };
   }
 
+  private static determineTransactionType(transaction: RawTransaction): 'debit' | 'credit' {
+    const merchantLower = transaction.merchant.toLowerCase();
+    
+    // Credit indicators
+    const creditKeywords = ['deposit', 'interest payment', 'refund', 'credit', 'transfer in'];
+    if (creditKeywords.some(keyword => merchantLower.includes(keyword))) {
+      return 'credit';
+    }
+    
+    // Most transactions are debits by default
+    return 'debit';
+  }
+
   static getCategoryStats(transactions: CategorizedTransaction[]): Record<TransactionCategory, number> {
     const stats: Record<TransactionCategory, number> = {
-      ATM: 0,
-      Food: 0,
-      Retail: 0,
-      Subscriptions: 0,
       Banking: 0,
+      ATM: 0,
+      Retail: 0,
+      Food: 0,
+      Subscriptions: 0,
       Other: 0
     };
 
