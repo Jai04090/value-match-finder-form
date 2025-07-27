@@ -64,17 +64,23 @@ export class TransactionParser {
 
   private static preprocessText(text: string): string {
     console.log('🔧 Starting text preprocessing...');
+    console.log('📄 Original text sample:', text.substring(0, 300));
     
     // Filter out obvious non-transaction lines early
     const lines = text.split('\n');
+    console.log(`📄 Total lines before filtering: ${lines.length}`);
+    
     const filteredLines = lines.filter(line => {
       const trimmed = line.trim();
       
       // Skip empty lines
       if (!trimmed) return false;
       
-      // Skip lines that don't contain dates or amounts
-      if (!/\d{1,2}\/\d{1,2}/.test(trimmed) && !/\d+\.\d{2}/.test(trimmed)) {
+      // Skip lines that don't contain dates or amounts - but be more permissive
+      const hasDatePattern = /\d{1,2}\/\d{1,2}/.test(trimmed);
+      const hasAmountPattern = /\d+\.\d{2}/.test(trimmed);
+      
+      if (!hasDatePattern && !hasAmountPattern) {
         return false;
       }
       
@@ -87,26 +93,39 @@ export class TransactionParser {
     });
     
     console.log(`🔧 Filtered from ${lines.length} to ${filteredLines.length} lines`);
+    console.log('📄 Sample filtered lines:', filteredLines.slice(0, 5));
     return filteredLines.join('\n');
   }
 
   static parseTransactions(redactedText: string): RawTransaction[] {
+    console.log('🔧 TransactionParser.parseTransactions called');
+    console.log('📄 Original text length:', redactedText.length);
+    console.log('📄 First 500 chars:', redactedText.substring(0, 500));
+    
     const preprocessedText = this.preprocessText(redactedText);
+    console.log('📄 Preprocessed text length:', preprocessedText.length);
+    console.log('📄 Preprocessed first 500 chars:', preprocessedText.substring(0, 500));
+    
     const lines = preprocessedText.split('\n').filter(line => line.trim());
+    console.log('📄 Total lines after preprocessing:', lines.length);
+    console.log('📄 Sample lines:', lines.slice(0, 10));
     
     const transactions: RawTransaction[] = [];
     const currentYear = 2018; // Wells Fargo PDF is from 2018
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
+      console.log(`🔍 Processing line ${i + 1}:`, line);
       
       if (this.shouldSkipLine(line)) {
+        console.log(`⏭️ Skipping line ${i + 1} (matches skip pattern)`);
         continue;
       }
       
       // Check for multiple transactions in one line
       const multiTransactions = this.parseMultipleTransactionsFromLine(line, currentYear);
       if (multiTransactions.length > 0) {
+        console.log(`✅ Found ${multiTransactions.length} transactions in line ${i + 1}:`, multiTransactions);
         transactions.push(...multiTransactions);
         continue;
       }
@@ -114,6 +133,7 @@ export class TransactionParser {
       // Try to parse as a single tabular transaction
       const tabularTransaction = this.parseTabularTransaction(line, currentYear);
       if (tabularTransaction) {
+        console.log(`✅ Parsed tabular transaction from line ${i + 1}:`, tabularTransaction);
         transactions.push(tabularTransaction);
         continue;
       }
@@ -121,12 +141,19 @@ export class TransactionParser {
       // Try to parse as a regular transaction line
       const transaction = this.parseTransactionLine(line);
       if (transaction) {
+        console.log(`✅ Parsed regular transaction from line ${i + 1}:`, transaction);
         transactions.push(transaction);
         continue;
       }
+      
+      console.log(`❌ No transaction found in line ${i + 1}`);
     }
     
-    return this.deduplicateTransactions(transactions);
+    console.log(`📊 Total transactions found: ${transactions.length}`);
+    const deduplicatedTransactions = this.deduplicateTransactions(transactions);
+    console.log(`📊 Final transactions after deduplication: ${deduplicatedTransactions.length}`);
+    
+    return deduplicatedTransactions;
   }
 
   private static parseMultipleTransactionsFromLine(line: string, currentYear: number): RawTransaction[] {
