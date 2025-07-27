@@ -251,23 +251,33 @@ const StaffLogin = () => {
             </Button>
           </div>
           
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            <div className="space-y-2">
-              <div>
-                <Link 
-                  to="/auth" 
-                  className="text-primary hover:underline"
-                >
-                  Regular User Login
-                </Link>
-              </div>
-              <div>
-                <Link 
-                  to="/institution-login" 
-                  className="text-primary hover:underline"
-                >
-                  Institution Login
-                </Link>
+          <div className="mt-6 space-y-4">
+            <Button
+              variant="outline"
+              onClick={() => navigate('/staff/publishing-queue')}
+              className="w-full"
+            >
+              Go to Publishing Queue
+            </Button>
+            
+            <div className="text-center text-sm text-muted-foreground">
+              <div className="space-y-2">
+                <div>
+                  <Link 
+                    to="/auth" 
+                    className="text-primary hover:underline"
+                  >
+                    Regular User Login
+                  </Link>
+                </div>
+                <div>
+                  <Link 
+                    to="/institution-login" 
+                    className="text-primary hover:underline"
+                  >
+                    Institution Login
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
