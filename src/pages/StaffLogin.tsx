@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Eye, EyeOff, Shield } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const StaffLogin = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -17,9 +18,52 @@ const StaffLogin = () => {
   const [lastName, setLastName] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (!user) return;
+
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        setUserRole(profile?.role || null);
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+      }
+    };
+
+    fetchUserRole();
+  }, [user]);
+
+  const handlePublishingQueueClick = () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in first to access the publishing queue",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (userRole !== 'staff') {
+      toast({
+        title: "Access Denied",
+        description: "Staff access required for publishing queue",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    navigate('/staff/publishing-queue');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -254,7 +298,7 @@ const StaffLogin = () => {
           <div className="mt-6 space-y-4">
             <Button
               variant="outline"
-              onClick={() => navigate('/staff/publishing-queue')}
+              onClick={handlePublishingQueueClick}
               className="w-full"
             >
               Go to Publishing Queue
