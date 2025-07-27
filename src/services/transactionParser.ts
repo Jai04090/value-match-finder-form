@@ -75,41 +75,57 @@ export class TransactionParser {
   ];
 
   private static preprocessText(text: string): string {
-    // First, try to extract inline transactions from the long lines
-    const inlineTransactions: string[] = [];
+    console.log('🔧 Starting text preprocessing...');
     
-    // Look for transaction patterns within the text
-    for (const pattern of this.inlineTransactionPatterns) {
+    // Wells Fargo specific transaction patterns
+    const wellsFargoPatterns = [
+      // Date Merchant Amount pattern
+      /(\d{2}\/\d{2})\s+([A-Za-z][^0-9]*?)\s+([-]?[\d,]+\.\d{2})/g,
+      // Handle specific Wells Fargo format with various spacing
+      /(\d{2}-\d{2})\s+([A-Za-z][^0-9]*?)\s+([-]?[\d,]+\.\d{2})/g,
+    ];
+
+    const extractedTransactions: string[] = [];
+    
+    // Extract transactions using Wells Fargo patterns
+    for (const pattern of wellsFargoPatterns) {
       let match;
       while ((match = pattern.exec(text)) !== null) {
         const [fullMatch, date, merchant, amount] = match;
-        inlineTransactions.push(fullMatch);
+        const cleanedTransaction = `${date} ${merchant.trim()} ${amount}`;
+        extractedTransactions.push(cleanedTransaction);
+        console.log('🔍 Found transaction:', cleanedTransaction);
       }
     }
     
-    if (inlineTransactions.length > 0) {
-      // Add the found transactions as separate lines
-      return text + '\n' + inlineTransactions.join('\n');
+    // If we found transactions, use them
+    if (extractedTransactions.length > 0) {
+      console.log(`✅ Extracted ${extractedTransactions.length} transactions`);
+      return extractedTransactions.join('\n');
     }
     
-    // If no inline transactions found, try to split on common separators
+    // Fallback: enhanced text processing for unstructured data
     let processed = text
-      .replace(/\s{3,}/g, '\n')  // Replace 3+ spaces with newlines
-      .replace(/\t+/g, '\n')     // Replace tabs with newlines
-      .replace(/\n{3,}/g, '\n\n') // Normalize multiple newlines
+      // Split on multiple spaces or special patterns
+      .replace(/\s{4,}/g, '\n')
+      .replace(/\t+/g, '\n')
+      .replace(/(\d{2}\/\d{2})\s+/g, '\n$1 ')  // New line before dates
+      .replace(/(\d{2}-\d{2})\s+/g, '\n$1 ')  // New line before dates
+      .replace(/\n{3,}/g, '\n\n')
       .trim();
     
+    console.log('🔧 Preprocessed text lines:', processed.split('\n').length);
     return processed;
   }
   private static readonly tabularPatterns = [
-    // Wells Fargo format: "07-06 Bill Pay Don Paumier 682.98"
-    /^(\d{2}-\d{2})\s+(.+?)\s+(\d{1,3}(?:,\d{3})*\.\d{2})$/,
-    // Standard format: "7/6 Bill Pay Don Paumier $682.98"
-    /^(\d{1,2}\/\d{1,2})\s+(.+?)\s+\$?(\d{1,3}(?:,\d{3})*\.\d{2})$/,
-    // Extended format: "07/06/2022 Bill Pay Don Paumier 682.98"
-    /^(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(.+?)\s+(\d{1,3}(?:,\d{3})*\.\d{2})$/,
-    // Debit/Credit format: "07-06 Bill Pay Don Paumier - 682.98"
-    /^(\d{2}-\d{2})\s+(.+?)\s+[-]?\s*(\d{1,3}(?:,\d{3})*\.\d{2})$/,
+    // Wells Fargo format with negative amounts: "07/02 Costco Whse #0472 Salinas CA -59.61"
+    /^(\d{1,2}\/\d{1,2})\s+(.+?)\s+([-]?[\d,]+\.\d{2})$/,
+    // Wells Fargo format with dash dates: "07-02 Costco Whse #0472 Salinas CA -59.61"
+    /^(\d{2}-\d{2})\s+(.+?)\s+([-]?[\d,]+\.\d{2})$/,
+    // Standard format with dollar sign: "7/6 Bill Pay Don Paumier $682.98"
+    /^(\d{1,2}\/\d{1,2})\s+(.+?)\s+\$?([-]?[\d,]+\.\d{2})$/,
+    // Extended format with full year: "07/06/2022 Bill Pay Don Paumier 682.98"
+    /^(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(.+?)\s+([-]?[\d,]+\.\d{2})$/,
   ];
 
   static parseTransactions(redactedText: string): RawTransaction[] {
@@ -286,15 +302,22 @@ export class TransactionParser {
   }
 
   private static extractAmount(line: string): number | null {
-    for (const pattern of this.amountPatterns) {
-      const matches = line.match(pattern);
-      if (matches) {
-        for (const match of matches) {
-          const cleanAmount = match.replace(/[$,]/g, '');
-          const amount = parseFloat(cleanAmount);
-          if (!isNaN(amount) && amount > 0) {
-            return amount;
-          }
+    // Enhanced amount patterns that handle negative values
+    const enhancedAmountPatterns = [
+      /([-]?[\d,]+\.\d{2})/g,              // Handles negative amounts: -59.61, 2724.82
+      /\$?([-]?[\d,]+\.\d{2})/g,           // With optional dollar sign
+      /([-]\s*[\d,]+\.\d{2})/g,            // Negative with space: - 59.61
+    ];
+
+    for (const pattern of enhancedAmountPatterns) {
+      const matches = [...line.matchAll(pattern)];
+      if (matches.length > 0) {
+        // Get the last match (usually the amount at the end of the line)
+        const lastMatch = matches[matches.length - 1];
+        const cleanAmount = lastMatch[1].replace(/[$,\s]/g, '');
+        const amount = parseFloat(cleanAmount);
+        if (!isNaN(amount)) {
+          return amount;
         }
       }
     }
@@ -328,15 +351,28 @@ export class TransactionParser {
   private static cleanMerchantName(merchant: string): string | null {
     if (!merchant) return null;
 
-    // Clean up merchant name
+    // Clean up merchant name while preserving location information
     let cleaned = merchant
       .replace(/\s+/g, ' ')                           // Normalize whitespace
       .replace(/^(DEBIT|CREDIT|ACH|PURCHASE|PAYMENT)\s*/i, '') // Remove banking prefixes
       .replace(/\s+(DEBIT|CREDIT|ACH|PURCHASE|PAYMENT)$/i, '') // Remove banking suffixes
       .replace(/^\s*[-#*]+\s*/, '')                   // Remove leading separators
       .replace(/\s*[-#*]+\s*$/, '')                   // Remove trailing separators
-      .replace(/^(POS|ATM|CARD)\s*/i, '')             // Remove transaction type prefixes
+      .replace(/^(POS|CARD)\s*/i, '')                 // Remove POS/CARD prefixes (keep ATM)
+      .replace(/\s*\bCR\b\s*$/i, '')                  // Remove CR suffix
+      .replace(/\s*\bDR\b\s*$/i, '')                  // Remove DR suffix
       .trim();
+
+    // Handle specific transaction types while preserving important details
+    if (cleaned.toLowerCase().includes('atm')) {
+      // Keep ATM transactions as-is since they contain location info
+      return cleaned;
+    }
+    
+    if (cleaned.toLowerCase().includes('check')) {
+      // Keep check transactions with check numbers
+      return cleaned;
+    }
 
     return cleaned.length > 0 ? cleaned : null;
   }
