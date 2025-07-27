@@ -2,6 +2,9 @@ import { RawTransaction, CategorizedTransaction, TransactionCategory, KeywordMap
 
 export class TransactionCategorizer {
   private static readonly defaultKeywordMap: KeywordMap = {
+    ATM: [
+      'atm withdrawal', 'cash advance', 'atm fee', 'atm', 'cash', 'withdrawal'
+    ],
     Food: [
       'starbucks', 'mcdonald', 'burger', 'pizza', 'restaurant', 'cafe', 'coffee',
       'food', 'grocery', 'market', 'deli', 'bakery', 'dining', 'kitchen',
@@ -17,6 +20,10 @@ export class TransactionCategorizer {
       'netflix', 'spotify', 'hulu', 'disney', 'amazon prime', 'youtube',
       'subscription', 'monthly', 'annual', 'membership', 'service',
       'adobe', 'microsoft', 'google', 'dropbox', 'icloud'
+    ],
+    Banking: [
+      'fee', 'service charge', 'interest', 'maintenance', 'overdraft', 'transfer',
+      'check', 'deposit', 'credit', 'debit', 'payment', 'balance'
     ],
     Other: []
   };
@@ -69,9 +76,11 @@ export class TransactionCategorizer {
 
   static getCategoryStats(transactions: CategorizedTransaction[]): Record<TransactionCategory, number> {
     const stats: Record<TransactionCategory, number> = {
+      ATM: 0,
       Food: 0,
       Retail: 0,
       Subscriptions: 0,
+      Banking: 0,
       Other: 0
     };
 

@@ -13,24 +13,60 @@ export class TransactionParser {
     /\b(\d{1,3}(?:,\d{3})*\.\d{2})\b/g // 1,234.56
   ];
 
+  private static readonly transactionSectionPatterns = [
+    /deposits?\s*(?:&|and)?\s*other\s*credits?/i,
+    /atm\s*withdrawals?/i,
+    /checks?\s*paid/i,
+    /electronic\s*withdrawals?/i,
+    /fees?\s*(?:&|and)?\s*service\s*charges?/i,
+    /other\s*debits?/i
+  ];
+
+  private static readonly skipPatterns = [
+    /^\s*(?:date|description|amount|balance|total|subtotal|page|statement)/i,
+    /^\s*(?:beginning|ending)\s*balance/i,
+    /^\s*(?:continued|carried)\s*(?:forward|over)/i,
+    /^\s*\*+\s*$/,
+    /^\s*-+\s*$/,
+    /^\s*=+\s*$/
+  ];
+
   static parseTransactions(redactedText: string): RawTransaction[] {
     const lines = redactedText.split('\n').map(line => line.trim()).filter(Boolean);
     const transactions: RawTransaction[] = [];
+    let inTransactionSection = false;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      const transaction = this.parseTransactionLine(line);
       
+      // Skip header/footer patterns
+      if (this.shouldSkipLine(line)) {
+        continue;
+      }
+
+      // Check if we're entering a transaction section
+      if (this.isTransactionSectionHeader(line)) {
+        inTransactionSection = true;
+        continue;
+      }
+
+      // Skip non-transaction sections
+      if (!inTransactionSection && !this.looksLikeTransaction(line)) {
+        continue;
+      }
+
+      // Try to parse single-line transaction
+      const transaction = this.parseTransactionLine(line);
       if (transaction) {
         transactions.push(transaction);
-      } else {
-        // Try to parse multi-line transaction
-        const multiLineTransaction = this.parseMultiLineTransaction(lines, i);
-        if (multiLineTransaction) {
-          transactions.push(multiLineTransaction);
-          // Skip the lines we've already processed
-          i += 1; // Adjust based on how many lines were consumed
-        }
+        continue;
+      }
+
+      // Try multi-line transaction (merchant on one line, amount/date on next)
+      const multiLineTransaction = this.parseMultiLineTransaction(lines, i);
+      if (multiLineTransaction) {
+        transactions.push(multiLineTransaction);
+        i += 1; // Skip the next line since we processed it
       }
     }
 
@@ -57,11 +93,50 @@ export class TransactionParser {
     return null;
   }
 
+  private static shouldSkipLine(line: string): boolean {
+    return this.skipPatterns.some(pattern => pattern.test(line));
+  }
+
+  private static isTransactionSectionHeader(line: string): boolean {
+    return this.transactionSectionPatterns.some(pattern => pattern.test(line));
+  }
+
+  private static looksLikeTransaction(line: string): boolean {
+    const hasDate = this.extractDate(line) !== null;
+    const hasAmount = this.extractAmount(line) !== null;
+    return hasDate || hasAmount;
+  }
+
   private static parseMultiLineTransaction(lines: string[], startIndex: number): RawTransaction | null {
     if (startIndex + 1 >= lines.length) return null;
 
+    // Try combining current line with next line
     const combinedLine = `${lines[startIndex]} ${lines[startIndex + 1]}`;
-    return this.parseTransactionLine(combinedLine);
+    const transaction = this.parseTransactionLine(combinedLine);
+    
+    if (transaction) {
+      return transaction;
+    }
+
+    // Try parsing merchant from current line and date/amount from next
+    const merchantCandidate = lines[startIndex];
+    const detailsLine = lines[startIndex + 1];
+    
+    const date = this.extractDate(detailsLine);
+    const amount = this.extractAmount(detailsLine);
+    
+    if (date && amount !== null && merchantCandidate.length > 0) {
+      const cleanMerchant = this.extractMerchant(merchantCandidate, null, null);
+      if (cleanMerchant) {
+        return {
+          date: this.normalizeDate(date),
+          merchant: cleanMerchant.trim(),
+          amount
+        };
+      }
+    }
+
+    return null;
   }
 
   private static extractDate(line: string): string | null {
