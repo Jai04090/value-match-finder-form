@@ -54,28 +54,30 @@ export class TransactionParser {
   ];
 
   private static readonly skipPatterns: RegExp[] = [
-    /^(Date|Description|Amount|Balance|Total|Beginning|Ending)\s*$/i,
+    /^(Date|Description|Amount|Balance|Total|Beginning|Ending)/i,
     /^\s*$/,
-    /^Page\s+\d+\s*of\s*\d+\s*$/i,
-    /^Wells\s+Fargo\s*$/i,
-    /^Account\s+Number\s*$/i,
-    /^Statement\s+Period\s*$/i,
-    /^Customer\s+Service\s*$/i,
+    /^Page\s+\d+/i,
+    /^Wells Fargo/i,
+    /^Account Number/i,
+    /^Statement Period/i,
+    /^Customer Service/i,
     /^\d+\s*$/,
     /^-+\s*$/,
-    /^Balance\s+(Forward|Brought)\s*$/i,
-    /^Total\s+(Deposits|Withdrawals|Fees)\s*$/i,
-    /^Daily\s+Balance\s*$/i,
-    /^Average\s+Balance\s*$/i,
-    /^Account\s*Summary\s*$/i,
-    /^Interest\s*Rate\s*$/i,
-    /^Available\s*Balance\s*$/i,
-    /^Present\s*Balance\s*$/i,
-    /^Business\s*Choice\s*Checking\s*$/i,
+    /^Balance\s+(Forward|Brought)/i,
+    /^Total\s+(Deposits|Withdrawals|Fees)/i,
+    /^Daily\s+Balance/i,
+    /^Average\s+Balance/i,
+    /^\$\d+\.\d{2}\s*$/,
+    /^(\d+\.\d{2})\s*$/,
+    /^Account\s*Summary/i,
+    /^Interest\s*Rate/i,
+    /^Available\s*Balance/i,
+    /^Present\s*Balance/i,
+    /^Business\s*Choice\s*Checking/i,
     /^\*{4}\d{4}\s*$/,  // Just account number alone
-    /^Deposits\s+Withdrawals\s+Balance\s*$/i,
-    /^Date\s+Description\s+Deposits\s*$/i,
-    /^Date\s+Description\s+Withdrawals\s*$/i,
+    /^purchase\s+authorized\s+on/i,
+    /^withdrawal\s+on/i,
+    /^deposit\s+on/i,
   ];
 
   private static readonly inlineTransactionPatterns = [
@@ -84,15 +86,15 @@ export class TransactionParser {
   ];
 
   private static preprocessText(text: string): string {
-    console.log('🔧 Starting comprehensive Wells Fargo text preprocessing...');
+    console.log('🔧 Starting Wells Fargo-specific text preprocessing...');
     console.log('📄 Original text length:', text.length);
     
     const lines = text.split('\n');
     console.log(`📄 Total lines before filtering: ${lines.length}`);
     
-    // Enhanced transaction section detection
-    let inTransactionSection = false;
-    let pageHasTransactions = false;
+    // Find the Transaction history section specifically
+    let inTransactionHistory = false;
+    let inContinuedHistory = false;
     const transactionLines: string[] = [];
     
     for (let i = 0; i < lines.length; i++) {
@@ -106,91 +108,57 @@ export class TransactionParser {
         continue;
       }
       
-      // More flexible transaction section detection
-      if (line.match(/Transaction\s+history/i) || 
-          line.match(/Date.*Description.*(?:Deposits|Withdrawals|Balance)/i) ||
-          line.match(/^\d{1,2}\/\d{1,2}\s+.*\d+\.\d{2}/)) {
-        console.log('📍 Found transaction section at line:', i + 1);
-        inTransactionSection = true;
-        pageHasTransactions = true;
-        
-        // If this looks like a transaction line itself, keep it
-        if (line.match(/^\d{1,2}\/\d{1,2}\s+.*\d+\.\d{2}/)) {
-          console.log(`✅ Keeping transaction line ${i + 1}:`, line);
-          transactionLines.push(line);
-        }
+      // Detect start of transaction history
+      if (line.includes('Transaction history')) {
+        console.log('📍 Found Transaction history section at line:', i + 1);
+        inTransactionHistory = true;
         continue;
       }
       
-      // Check for page breaks that might continue transactions
-      if (line.match(/^Page\s+\d+/i)) {
-        // Reset but keep looking for more transactions
-        pageHasTransactions = false;
+      // Detect continued transaction history on subsequent pages
+      if (line.includes('Transaction history (continued)')) {
+        console.log('📍 Found Transaction history (continued) section at line:', i + 1);
+        inContinuedHistory = true;
         continue;
       }
       
-      // More flexible end detection - only stop at clear end markers
-      if (line.match(/Ending\s+balance/i) || 
-          line.match(/Account\s+summary/i) || 
-          line.match(/Service\s+charges?/i) ||
-          line.match(/Interest\s+paid/i) ||
-          line.match(/Monthly\s+service\s+fee/i)) {
-        console.log('📍 Found section end at line:', i + 1, ':', line);
-        if (!line.match(/^\d{1,2}\/\d{1,2}/)) {
-          inTransactionSection = false;
-        }
+      // Stop at summary sections
+      if (line.includes('Ending balance') || 
+          line.includes('Summary of checks') || 
+          line.includes('Monthly service fee') ||
+          line.includes('Totals $')) {
+        console.log('📍 Found end of transaction section at line:', i + 1);
+        inTransactionHistory = false;
+        inContinuedHistory = false;
+        continue;
       }
       
-      // Enhanced transaction line detection
-      if (inTransactionSection || pageHasTransactions) {
-        // Less restrictive filtering - capture more potential transaction lines
-        const isTransactionLine = (
-          line.match(/^\d{1,2}\/\d{1,2}/) ||  // Starts with date
-          line.match(/^\d+\s+Check/) ||        // Check number format
-          line.match(/\d+\.\d{2}\s*$/) ||      // Ends with amount
-          line.match(/[A-Z][a-z]+.*\d+\.\d{2}/) || // Contains merchant and amount
-          (transactionLines.length > 0 && !line.match(/^[A-Z][a-z]+\s+[A-Z][a-z]+/) && line.length > 10) // Continuation line
-        );
-        
-        const shouldSkip = (
-          line.match(/^Date.*Description/i) ||
-          line.match(/^Deposits.*Withdrawals/i) ||
-          line.match(/^Balance.*Forward/i) ||
-          line.match(/^Total.*\$/i) ||
-          line.match(/^Account.*Number/i) ||
-          line.match(/^Customer.*Service/i) ||
-          line.match(/^Wells.*Fargo/i) ||
-          line.match(/^\*{4}\d{4}\s*$/) ||
-          line.match(/^Page\s+\d+/i) ||
-          this.shouldSkipLine(line)
-        );
-        
-        if (isTransactionLine && !shouldSkip) {
-          console.log(`✅ Keeping transaction line ${i + 1}:`, line);
-          transactionLines.push(line);
-        } else if (!shouldSkip && line.length > 5) {
-          // Keep potential continuation lines that aren't obvious headers
-          console.log(`📝 Keeping potential continuation line ${i + 1}:`, line);
-          transactionLines.push(line);
+      // Skip table headers
+      if (line.includes('Date') && line.includes('Description') && 
+          (line.includes('Deposits') || line.includes('Withdrawals') || line.includes('Balance'))) {
+        continue;
+      }
+      
+      // If we're in a transaction section, keep everything except obvious headers
+      if (inTransactionHistory || inContinuedHistory) {
+        // Skip obvious non-transaction lines
+        if (this.shouldSkipLine(line)) {
+          continue;
         }
+        
+        console.log(`✅ Keeping transaction line ${i + 1}:`, line);
+        transactionLines.push(line);
       }
     }
     
     console.log(`🔧 Extracted ${transactionLines.length} potential transaction lines from Wells Fargo statement`);
     
-    // Enhanced debugging output
+    // Log sample lines for debugging
     if (transactionLines.length > 0) {
-      console.log('📄 First 15 transaction lines:');
-      transactionLines.slice(0, 15).forEach((line, idx) => {
+      console.log('📄 First 10 transaction lines:');
+      transactionLines.slice(0, 10).forEach((line, idx) => {
         console.log(`  ${idx + 1}: ${line}`);
       });
-      
-      if (transactionLines.length > 15) {
-        console.log('📄 Last 10 transaction lines:');
-        transactionLines.slice(-10).forEach((line, idx) => {
-          console.log(`  ${transactionLines.length - 10 + idx + 1}: ${line}`);
-        });
-      }
     }
     
     return transactionLines.join('\n');
@@ -235,16 +203,15 @@ export class TransactionParser {
     return deduplicatedTransactions;
   }
 
-  // Enhanced multi-line transaction combination
+  // Combine lines that are part of multi-line transactions
   private static combineMultiLineTransactions(lines: string[]): string[] {
     const combinedLines: string[] = [];
     let currentTransaction = '';
-    let lookingForAmount = false;
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       
-      // Enhanced date detection - start of new transaction
+      // If line starts with a date, it's likely a new transaction
       if (/^\d{1,2}\/\d{1,2}/.test(line)) {
         // Save previous transaction if it exists
         if (currentTransaction) {
@@ -252,42 +219,9 @@ export class TransactionParser {
         }
         // Start new transaction
         currentTransaction = line;
-        lookingForAmount = !line.match(/\d+\.\d{2}\s*$/); // Check if amount is missing
-      } 
-      // Check number format (e.g., "1255 Check")
-      else if (/^\d+\s+(Check|Deposit)/.test(line)) {
-        if (currentTransaction) {
-          combinedLines.push(currentTransaction.trim());
-        }
-        currentTransaction = line;
-        lookingForAmount = !line.match(/\d+\.\d{2}\s*$/);
-      }
-      // Continuation line with amount or description
-      else if (currentTransaction) {
-        // If we're looking for an amount and this line has one
-        if (lookingForAmount && line.match(/^\d+\.\d{2}/)) {
-          currentTransaction += ' ' + line;
-          lookingForAmount = false;
-        }
-        // If this looks like a description continuation
-        else if (!line.match(/^\d+\.\d{2}/) && line.length > 3) {
-          currentTransaction += ' ' + line;
-        }
-        // If this line has an amount at the end
-        else if (line.match(/\d+\.\d{2}\s*$/)) {
-          currentTransaction += ' ' + line;
-          lookingForAmount = false;
-        }
-        // Standalone amount line
-        else if (/^\d+\.\d{2}\s*$/.test(line)) {
-          currentTransaction += ' ' + line;
-          lookingForAmount = false;
-        }
-      }
-      // Orphaned line that might be a transaction
-      else if (line.length > 5 && !line.match(/^[A-Z][a-z]+\s+[A-Z][a-z]+/)) {
-        currentTransaction = line;
-        lookingForAmount = !line.match(/\d+\.\d{2}\s*$/);
+      } else {
+        // Continuation of current transaction
+        currentTransaction += ' ' + line;
       }
     }
     
@@ -296,96 +230,64 @@ export class TransactionParser {
       combinedLines.push(currentTransaction.trim());
     }
     
-    console.log(`🔧 Combined ${lines.length} lines into ${combinedLines.length} transaction candidates`);
-    
     return combinedLines;
   }
 
-  // Enhanced Wells Fargo transaction parsing with comprehensive patterns
+  // Parse Wells Fargo specific transaction formats
   private static parseWellsFargoTransactionLine(line: string, currentYear: number): RawTransaction[] {
     const transactions: RawTransaction[] = [];
     
-    // Comprehensive Wells Fargo patterns for all transaction types
+    // Wells Fargo patterns based on the actual statement format
     const wellsFargoPatterns = [
-      // Check format with amount and balance: 7/2 1255 Check 190.00 2,850.00
+      // Basic format: 7/2 ATM Check Deposit on 07/02 1037 S Main St Salinas CA 0003304 ATM ID 0409A Card 1752 2,724.82
+      {
+        pattern: /^(\d{1,2}\/\d{1,2})\s+(.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
+        type: 'basic'
+      },
+      // Check format: 7/2 1255 Check 190.00 2,850.00
       {
         pattern: /^(\d{1,2}\/\d{1,2})\s+(\d+)\s+(Check)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
-        type: 'check_with_balance'
-      },
-      // Check format without balance: 7/2 1255 Check 190.00
-      {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(\d+)\s+(Check)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
         type: 'check'
       },
-      // ATM transactions with detailed info
+      // Deposit/Credit format: 7/2 1256 Deposited OR Cashed Check 250.00
       {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(ATM\s+(?:Check\s+Deposit|Withdrawal).*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
-        type: 'atm'
+        pattern: /^(\d{1,2}\/\d{1,2})\s+(.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
+        type: 'deposit'
       },
-      // Purchase transactions
+      // Purchase format: 7/2 Purchase authorized on 06/30 Costco Whse #0472 Salinas CA P00308181728100479 Card 8135 59.61
       {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(Purchase\s+authorized\s+on\s+\d{1,2}\/\d{1,2}.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
+        pattern: /^(\d{1,2}\/\d{1,2})\s+(Purchase authorized on \d{1,2}\/\d{1,2}\s+.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
         type: 'purchase'
       },
-      // Online transfers
+      // Transfer format: 7/3 Online Transfer to Rosendo Serrano Business Checking xxxxxx8620 Ref #Ib04Sp6Dcp on 07/03/18 70.00
       {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(Online\s+Transfer.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
+        pattern: /^(\d{1,2}\/\d{1,2})\s+(.*?Transfer.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
         type: 'transfer'
       },
-      // Recurring payments
+      // ATM format: 7/23 ATM Withdrawal authorized on 07/21 1037 S Main St Salinas CA 0008816 ATM ID 0409C Card 8135 800.00
       {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(Recurring\s+Payment.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
-        type: 'recurring'
+        pattern: /^(\d{1,2}\/\d{1,2})\s+(ATM.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
+        type: 'atm'
       },
-      // ACH transactions
-      {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(<?.*?ACH.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
-        type: 'ach'
-      },
-      // Fee transactions
+      // Fee format: 7/18 Overdraft Fee for a Transaction Posted on 07/17 $700.00 Capital One Crcardpmt 180715 819730180015 878 8119618411Serrano Rose 35.00
       {
         pattern: /^(\d{1,2}\/\d{1,2})\s+(.*?Fee.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
         type: 'fee'
       },
-      // Mobile deposits
+      // ACH format: 7/17 < Business to Business ACH Debit - Capital One Crcardpmt 180715 819730180015878 8119618411Serrano Rose 700.00
       {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(Mobile\s+Deposit.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
+        pattern: /^(\d{1,2}\/\d{1,2})\s+(.*?ACH.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
+        type: 'ach'
+      },
+      // Mobile deposit format: 7/24 Mobile Deposit : Ref Number :411240823221 513.88
+      {
+        pattern: /^(\d{1,2}\/\d{1,2})\s+(Mobile Deposit.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
         type: 'mobile_deposit'
       },
-      // Branch transactions
+      // Branch withdrawal format: 7/27 Withdrawal Made In A Branch/Store 6,700.00
       {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+((?:Withdrawal\s+Made\s+In\s+A\s+Branch|Edeposit\s+IN\s+Branch).*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
-        type: 'branch'
-      },
-      // Deposited/Cashed checks
-      {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(\d+)\s+((?:Deposited|Cashed)\s+Check.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
-        type: 'deposited_check'
-      },
-      // Wire transfers
-      {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(Wire\s+Transfer.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
-        type: 'wire'
-      },
-      // General format with amount at end
-      {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
-        type: 'general'
-      },
-      // Check number only format: 1255 Check
-      {
-        pattern: /^(\d+)\s+(Check)\s*$/,
-        type: 'check_number_only'
-      },
-      // Amount only format at start of line
-      {
-        pattern: /^(\d{1,3}(?:,\d{3})*\.?\d{2})\s+(.*)$/,
-        type: 'amount_first'
-      },
-      // Lines with merchant names and amounts embedded
-      {
-        pattern: /^(.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
-        type: 'merchant_amount_balance'
+        pattern: /^(\d{1,2}\/\d{1,2})\s+(Withdrawal Made In A Branch\/Store)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
+        type: 'branch_withdrawal'
       }
     ];
 
@@ -396,9 +298,8 @@ export class TransactionParser {
         
         let transaction: RawTransaction | null = null;
         
-        // Enhanced parsing for different transaction types
-        if (type === 'check_with_balance') {
-          // Format: date, checkNumber, "Check", amount, balance
+        if (type === 'check') {
+          // Handle check format: date, checkNumber, "Check", amount, balance
           const [, dateStr, checkNumber, , amountStr] = match;
           const normalizedDate = this.normalizeDate(dateStr, currentYear);
           const amount = -parseFloat(amountStr.replace(/,/g, ''));
@@ -410,87 +311,23 @@ export class TransactionParser {
               amount: amount
             };
           }
-        } else if (type === 'check') {
-          // Format: date, checkNumber, "Check", amount
-          const [, dateStr, checkNumber, , amountStr] = match;
-          const normalizedDate = this.normalizeDate(dateStr, currentYear);
-          const amount = -parseFloat(amountStr.replace(/,/g, ''));
-          
-          if (normalizedDate && !isNaN(amount)) {
-            transaction = {
-              date: normalizedDate,
-              merchant: `Check #${checkNumber}`,
-              amount: amount
-            };
-          }
-        } else if (type === 'deposited_check') {
-          // Format: date, checkNumber, description, amount
-          const [, dateStr, checkNumber, description, amountStr] = match;
-          const normalizedDate = this.normalizeDate(dateStr, currentYear);
-          const amount = parseFloat(amountStr.replace(/,/g, ''));
-          
-          if (normalizedDate && !isNaN(amount)) {
-            transaction = {
-              date: normalizedDate,
-              merchant: `${description} #${checkNumber}`,
-              amount: amount
-            };
-          }
-        } else if (type === 'check_number_only') {
-          // Handle orphaned check numbers - try to find amount in previous context
-          const [, checkNumber] = match;
-          // This needs special handling with context from previous lines
-          console.log(`📝 Found orphaned check number: ${checkNumber}`);
-        } else if (type === 'amount_first') {
-          // Handle lines starting with amounts
-          const [, amountStr, description] = match;
-          const amount = parseFloat(amountStr.replace(/,/g, ''));
-          
-          if (!isNaN(amount) && description.trim()) {
-            // Need to find date from context
-            console.log(`📝 Found amount-first format: ${amountStr} ${description}`);
-          }
-        } else if (type === 'merchant_amount_balance') {
-          // Handle merchant name with amount and balance
-          const [, merchant, amountStr, balanceStr] = match;
-          const amount = parseFloat(amountStr.replace(/,/g, ''));
-          
-          if (!isNaN(amount) && merchant.trim()) {
-            // Need to find date from context
-            console.log(`📝 Found merchant-amount-balance format: ${merchant} ${amountStr} ${balanceStr}`);
-          }
-        } else {
-          // Handle standard formats: date, description, amount
+        } else if (type === 'basic' || type === 'deposit' || type === 'purchase' || 
+                   type === 'transfer' || type === 'atm' || type === 'fee' || 
+                   type === 'ach' || type === 'mobile_deposit' || type === 'branch_withdrawal') {
+          // Handle other formats: date, description, amount
           const [, dateStr, description, amountStr] = match;
           const normalizedDate = this.normalizeDate(dateStr, currentYear);
           let amount = parseFloat(amountStr.replace(/,/g, ''));
           
-          // Enhanced credit/debit determination
-          const isCredit = (
-            description.toLowerCase().includes('deposit') || 
-            description.toLowerCase().includes('credit') ||
-            description.toLowerCase().includes('transfer from') ||
-            description.toLowerCase().includes('transfer to') && description.toLowerCase().includes('from') ||
-            description.toLowerCase().includes('mobile deposit') ||
-            description.toLowerCase().includes('edeposit') ||
-            description.toLowerCase().includes('cashed check') ||
-            description.toLowerCase().includes('deposited check') ||
-            type === 'mobile_deposit'
-          );
+          // Determine if it's a debit or credit based on description and type
+          const isCredit = description.toLowerCase().includes('deposit') || 
+                          description.toLowerCase().includes('credit') ||
+                          description.toLowerCase().includes('transfer from') ||
+                          description.toLowerCase().includes('mobile deposit') ||
+                          type === 'deposit' || type === 'mobile_deposit';
           
-          const isDebit = (
-            description.toLowerCase().includes('withdrawal') ||
-            description.toLowerCase().includes('purchase') ||
-            description.toLowerCase().includes('fee') ||
-            description.toLowerCase().includes('ach debit') ||
-            description.toLowerCase().includes('transfer to') && !description.toLowerCase().includes('from') ||
-            type === 'fee' || type === 'purchase' || type === 'ach'
-          );
-          
-          if (isDebit || (!isCredit && amount > 0)) {
+          if (!isCredit) {
             amount = -Math.abs(amount);
-          } else if (isCredit) {
-            amount = Math.abs(amount);
           }
           
           if (normalizedDate && !isNaN(amount)) {
