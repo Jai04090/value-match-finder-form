@@ -1,33 +1,25 @@
 import { RawTransaction } from '@/types/bankStatement';
 
 export class TransactionParser {
-  // Enhanced patterns for Wells Fargo and other bank formats
-  private static readonly wellsFargoPatterns = [
-    /(\d{2}\/\d{2})\s+(.+?)\s+([-]?\d{1,3}(?:,\d{3})*\.\d{2})/g, // MM/DD Description Amount with negatives
-    /(\d{2}-\d{2})\s+(.+?)\s+([-]?\d{1,3}(?:,\d{3})*\.\d{2})/g, // MM-DD Description Amount
-    /(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(.+?)\s+([-]?\d{1,3}(?:,\d{3})*\.\d{2})/g, // Full date format
+  // Updated patterns for better Wells Fargo parsing
+  private static readonly wellsFargoPatterns: RegExp[] = [
+    /^(\d{1,2}\/\d{1,2}\/\d{4})\s+(.+?)\s+(-?\d+\.\d{2})$/,
+    /^(\d{1,2}\/\d{1,2})\s+(.+?)\s+(-?\d+\.\d{2})$/,
+    /(\d{1,2}\/\d{1,2}\/\d{4})\s+([^0-9-]+?)\s+(-?\d+\.\d{2})/g
   ];
 
-  // Enhanced date patterns for various formats
-  private static readonly datePatterns = [
-    /\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/g,          // MM/DD/YY or MM/DD/YYYY
-    /\b(\d{1,2})-(\d{1,2})-(\d{2,4})\b/g,           // MM-DD-YY or MM-DD-YYYY
-    /\b(\d{4})-(\d{1,2})-(\d{1,2})\b/g,             // YYYY-MM-DD
-    /\b(\d{1,2})\/(\d{1,2})\b/g,                    // MM/DD (current year assumed)
-    /\b(\d{1,2})-(\d{1,2})\b/g,                     // MM-DD (current year assumed)
-    /\b(\d{2})-(\d{2})\b/g,                         // MM-DD format
-    /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4}/gi // Month DD, YYYY
+  private static readonly datePatterns: RegExp[] = [
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})\b/,
+    /^(\d{1,2})\/(\d{1,2})\b/,
+    /(\d{4})-(\d{2})-(\d{2})/
   ];
 
-  // Enhanced amount patterns
-  private static readonly amountPatterns = [
-    /\$?(\d{1,3}(?:,\d{3})*\.\d{2})/g,              // $1,234.56 or 1,234.56
-    /\$?(\d+\.\d{2})/g,                             // $123.45 or 123.45
-    /(\d{1,3}(?:,\d{3})*)\.\d{2}/g,                 // 1,234.56
-    /-\$?(\d{1,3}(?:,\d{3})*\.\d{2})/g,            // Negative amounts
+  private static readonly amountPatterns: RegExp[] = [
+    /(-?\d+\.\d{2})$/,
+    /\s(-?\d+\.\d{2})(?:\s|$)/,
+    /(-?\$?\d{1,3}(?:,\d{3})*\.?\d{0,2})(?:\s|$)/
   ];
 
-  // Table header patterns to identify transaction sections
   private static readonly tableHeaderPatterns = [
     /date\s+description\s+amount/i,
     /transaction\s+date\s+description\s+debit\s+credit/i,
@@ -35,7 +27,6 @@ export class TransactionParser {
     /date\s+transaction\s+description\s+withdrawals\s+deposits\s+balance/i,
   ];
 
-  // Enhanced transaction section patterns
   private static readonly transactionSectionPatterns = [
     /deposits?(?:\s+&?\s+other\s+credits?)?/i,
     /atm\s+withdrawals?/i,
@@ -48,35 +39,25 @@ export class TransactionParser {
     /interest\s+payments?/i,
   ];
 
-  // Enhanced skip patterns for Wells Fargo statements
-  private static readonly skipPatterns = [
-    /^\s*$/,                                        // Empty lines
-    /^[-=\s]+$/,                                    // Separator lines
-    /^page\s+\d+/i,                                 // Page numbers
-    /^statement\s+period/i,                         // Statement period
-    /^account\s+summary/i,                          // Account summary
-    /^previous\s+balance/i,                         // Previous balance
-    /^current\s+balance/i,                          // Current balance
-    /^total\s+(withdrawals?|deposits?|debits?|credits?)/i, // Total lines
-    /^beginning\s+balance/i,                        // Beginning balance
-    /^ending\s+balance/i,                           // Ending balance
-    /^daily\s+balance/i,                            // Daily balance
-    /^account\s+number/i,                           // Account number
-    /^customer\s+service/i,                         // Customer service info
-    /^continued\s+on\s+next\s+page/i,               // Page continuations
-    /^subtotal/i,                                   // Subtotals
-    /^business\s+bank\s+statement/i,                // Header text
-    /^wells\s+fargo/i,                              // Bank name
-    /^scan\s+to\s+open/i,                           // PDF artifacts
-    /^downloaded\s+by/i,                            // PDF artifacts
-    /lOMoARcPSD/i,                                  // PDF artifacts
-    /^corporate\s+law/i,                            // Document artifacts
-    /^studocu/i,                                    // Platform artifacts
+  private static readonly skipPatterns: RegExp[] = [
+    /^(Date|Description|Amount|Balance|Total|Beginning|Ending)/i,
+    /^\s*$/,
+    /^Page\s+\d+/i,
+    /^Wells Fargo/i,
+    /^Account Number/i,
+    /^Statement Period/i,
+    /^Customer Service/i,
+    /^\d+\s*$/,
+    /^-+\s*$/,
+    /^Balance\s+(Forward|Brought)/i,
+    /^Total\s+(Deposits|Withdrawals|Fees)/i,
+    /^Daily\s+Balance/i,
+    /^Average\s+Balance/i,
+    /^\$\d+\.\d{2}\s*$/,
+    /^(\d+\.\d{2})\s*$/
   ];
 
-  // Inline transaction patterns for extracting from long combined lines
   private static readonly inlineTransactionPatterns = [
-    // Look for date + description + amount patterns within text
     /(\d{2}-\d{2})\s+([^0-9]+?)\s+(\d{1,3}(?:,\d{3})*\.\d{2})/g,
     /(\d{1,2}\/\d{1,2})\s+([^0-9]+?)\s+\$?(\d{1,3}(?:,\d{3})*\.\d{2})/g,
   ];
@@ -84,143 +65,124 @@ export class TransactionParser {
   private static preprocessText(text: string): string {
     console.log('🔧 Starting text preprocessing...');
     
-    // Wells Fargo specific transaction patterns
-    const wellsFargoPatterns = [
-      // Date Merchant Amount pattern
-      /(\d{2}\/\d{2})\s+([A-Za-z][^0-9]*?)\s+([-]?[\d,]+\.\d{2})/g,
-      // Handle specific Wells Fargo format with various spacing
-      /(\d{2}-\d{2})\s+([A-Za-z][^0-9]*?)\s+([-]?[\d,]+\.\d{2})/g,
-    ];
-
-    const extractedTransactions: string[] = [];
-    
-    // Extract transactions using Wells Fargo patterns
-    for (const pattern of wellsFargoPatterns) {
-      let match;
-      while ((match = pattern.exec(text)) !== null) {
-        const [fullMatch, date, merchant, amount] = match;
-        const cleanedTransaction = `${date} ${merchant.trim()} ${amount}`;
-        extractedTransactions.push(cleanedTransaction);
-        console.log('🔍 Found transaction:', cleanedTransaction);
+    // Filter out obvious non-transaction lines early
+    const lines = text.split('\n');
+    const filteredLines = lines.filter(line => {
+      const trimmed = line.trim();
+      
+      // Skip empty lines
+      if (!trimmed) return false;
+      
+      // Skip lines that don't contain dates or amounts
+      if (!/\d{1,2}\/\d{1,2}/.test(trimmed) && !/\d+\.\d{2}/.test(trimmed)) {
+        return false;
       }
-    }
+      
+      // Skip obvious headers and footers
+      if (this.shouldSkipLine(trimmed)) {
+        return false;
+      }
+      
+      return true;
+    });
     
-    // If we found transactions, use them
-    if (extractedTransactions.length > 0) {
-      console.log(`✅ Extracted ${extractedTransactions.length} transactions`);
-      return extractedTransactions.join('\n');
-    }
-    
-    // Fallback: enhanced text processing for unstructured data
-    let processed = text
-      // Split on multiple spaces or special patterns
-      .replace(/\s{4,}/g, '\n')
-      .replace(/\t+/g, '\n')
-      .replace(/(\d{2}\/\d{2})\s+/g, '\n$1 ')  // New line before dates
-      .replace(/(\d{2}-\d{2})\s+/g, '\n$1 ')  // New line before dates
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-    
-    console.log('🔧 Preprocessed text lines:', processed.split('\n').length);
-    return processed;
+    console.log(`🔧 Filtered from ${lines.length} to ${filteredLines.length} lines`);
+    return filteredLines.join('\n');
   }
-  private static readonly tabularPatterns = [
-    // Wells Fargo format: "07/02 Costco Whse #0472 Salinas CA -59.61" (exact match)
-    /^(\d{2}\/\d{2})\s+(.+?)\s+([-]?\d{1,3}(?:,\d{3})*\.\d{2})\s*$/,
-    // Alternative with single digit month/day: "7/2 Merchant Name 123.45"
-    /^(\d{1,2}\/\d{1,2})\s+(.+?)\s+([-]?\d{1,3}(?:,\d{3})*\.\d{2})\s*$/,
-    // Wells Fargo with dash dates: "07-02 Costco Whse #0472 Salinas CA -59.61"
-    /^(\d{2}-\d{2})\s+(.+?)\s+([-]?\d{1,3}(?:,\d{3})*\.\d{2})\s*$/,
-    // Extended format with full year: "07/06/2018 Bill Pay Don Paumier 682.98"
-    /^(\d{1,2}\/\d{1,2}\/\d{4})\s+(.+?)\s+([-]?\d{1,3}(?:,\d{3})*\.\d{2})\s*$/,
-  ];
 
   static parseTransactions(redactedText: string): RawTransaction[] {
-    console.log('📄 Original text length:', redactedText.length);
-    console.log('📄 First 500 chars:', redactedText.substring(0, 500));
-    
-    // Preprocess text specifically for Wells Fargo PDFs
     const preprocessedText = this.preprocessText(redactedText);
-    const lines = preprocessedText.split('\n').map(line => line.trim()).filter(Boolean);
-    
-    console.log('📄 After preprocessing, total lines:', lines.length);
-    console.log('📄 Sample preprocessed lines:', lines.slice(0, 10));
+    const lines = preprocessedText.split('\n').filter(line => line.trim());
     
     const transactions: RawTransaction[] = [];
-    const currentYear = 2018; // Set to 2018 to match Wells Fargo statement year
-
-    // Process each line looking specifically for transaction patterns
+    const currentYear = 2018; // Wells Fargo PDF is from 2018
+    
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
+      const line = lines[i].trim();
       
-      // Skip obvious non-transaction lines
       if (this.shouldSkipLine(line)) {
         continue;
       }
-
-      // Only process lines that start with a date pattern (MM/DD or MM-DD)
-      if (!/^\d{1,2}[\/\-]\d{1,2}/.test(line)) {
+      
+      // Check for multiple transactions in one line
+      const multiTransactions = this.parseMultipleTransactionsFromLine(line, currentYear);
+      if (multiTransactions.length > 0) {
+        transactions.push(...multiTransactions);
         continue;
       }
-
-      // Try tabular parsing (primary method for Wells Fargo)
+      
+      // Try to parse as a single tabular transaction
       const tabularTransaction = this.parseTabularTransaction(line, currentYear);
       if (tabularTransaction) {
         transactions.push(tabularTransaction);
-        console.log('✅ Parsed transaction:', tabularTransaction);
         continue;
       }
-
-      // Fallback to single-line parsing
+      
+      // Try to parse as a regular transaction line
       const transaction = this.parseTransactionLine(line);
       if (transaction) {
-        // Ensure date is normalized to 2018
-        const normalizedTransaction = {
-          ...transaction,
-          date: this.normalizeDate(transaction.date, currentYear)
-        };
-        transactions.push(normalizedTransaction);
-        console.log('✅ Parsed fallback transaction:', normalizedTransaction);
+        transactions.push(transaction);
+        continue;
       }
     }
+    
+    return this.deduplicateTransactions(transactions);
+  }
 
-    console.log('📄 Total parsed transactions before deduplication:', transactions.length);
-    const deduplicatedTransactions = this.deduplicateTransactions(transactions);
-    console.log('📄 Final transactions after deduplication:', deduplicatedTransactions.length);
-
-    return deduplicatedTransactions;
+  private static parseMultipleTransactionsFromLine(line: string, currentYear: number): RawTransaction[] {
+    const transactions: RawTransaction[] = [];
+    
+    // Pattern to find multiple date-merchant-amount sequences in one line
+    const multiPattern = /(\d{1,2}\/\d{1,2}(?:\/\d{4})?)\s+([^0-9-]+?)\s+(-?\d+\.\d{2})/g;
+    let match;
+    
+    while ((match = multiPattern.exec(line)) !== null) {
+      const [, dateStr, merchantStr, amountStr] = match;
+      
+      const date = this.normalizeDate(dateStr, currentYear);
+      const merchant = this.cleanMerchantName(merchantStr.trim());
+      const amount = parseFloat(amountStr);
+      
+      if (date && merchant && !isNaN(amount) && merchant.length > 2) {
+        transactions.push({ date, merchant, amount });
+      }
+    }
+    
+    return transactions;
   }
 
   private static parseTabularTransaction(line: string, currentYear: number): RawTransaction | null {
-    for (let patternIndex = 0; patternIndex < this.tabularPatterns.length; patternIndex++) {
-      const pattern = this.tabularPatterns[patternIndex];
+    // Try Wells Fargo patterns for single transactions
+    for (const pattern of this.wellsFargoPatterns.slice(0, 2)) { // Use only single transaction patterns
       const match = line.match(pattern);
       if (match) {
-        const [, dateStr, merchantRaw, amountStr] = match;
+        const [, dateStr, merchantStr, amountStr] = match;
         
-        try {
-          const date = this.normalizeDate(dateStr, currentYear);
-          let amount = parseFloat(amountStr.replace(/[,$]/g, ''));
-          const cleanMerchant = this.cleanMerchantName(merchantRaw.trim());
-          
-          if (date && !isNaN(amount) && cleanMerchant) {
-            // Wells Fargo: Convert positive amounts to negative for debits (withdrawals)
-            // Only deposits should remain positive
-            if (amount > 0 && !cleanMerchant.toLowerCase().includes('deposit')) {
-              amount = -amount;
-            }
-            
-            return {
-              date,
-              merchant: cleanMerchant,
-              amount
-            };
-          }
-        } catch (error) {
-          console.warn('Error parsing tabular transaction:', line, error);
+        const date = this.normalizeDate(dateStr, currentYear);
+        const merchant = this.cleanMerchantName(merchantStr);
+        const amount = parseFloat(amountStr);
+        
+        if (date && merchant && !isNaN(amount)) {
+          return { date, merchant, amount };
         }
       }
     }
+    
+    // Fallback to extracting components separately
+    const dateStr = this.extractDate(line);
+    const amountStr = this.extractAmount(line);
+    const merchantStr = this.extractMerchant(line, dateStr, amountStr);
+    
+    if (dateStr && merchantStr && amountStr) {
+      const date = this.normalizeDate(dateStr, currentYear);
+      const merchant = this.cleanMerchantName(merchantStr);
+      const amount = parseFloat(amountStr);
+      
+      if (date && merchant && !isNaN(amount)) {
+        return { date, merchant, amount };
+      }
+    }
+    
     return null;
   }
 
@@ -231,11 +193,15 @@ export class TransactionParser {
       const merchant = this.extractMerchant(line, date, amount);
 
       if (date && amount !== null && merchant) {
-        return {
-          date: this.normalizeDate(date),
-          merchant: this.cleanMerchantName(merchant),
-          amount
-        };
+        const normalizedDate = this.normalizeDate(date);
+        const parsedAmount = parseFloat(amount);
+        if (normalizedDate && !isNaN(parsedAmount)) {
+          return {
+            date: normalizedDate,
+            merchant: this.cleanMerchantName(merchant),
+            amount: parsedAmount
+          };
+        }
       }
     } catch (error) {
       // Skip malformed lines
@@ -244,54 +210,8 @@ export class TransactionParser {
     return null;
   }
 
-  private static parseMultiLineTransaction(lines: string[], startIndex: number): RawTransaction | null {
-    if (startIndex + 1 >= lines.length) return null;
-
-    // Try combining current line with next line
-    const combinedLine = `${lines[startIndex]} ${lines[startIndex + 1]}`;
-    const transaction = this.parseTransactionLine(combinedLine);
-    
-    if (transaction) {
-      return transaction;
-    }
-
-    // Try parsing merchant from current line and date/amount from next
-    const merchantCandidate = lines[startIndex];
-    const detailsLine = lines[startIndex + 1];
-    
-    const date = this.extractDate(detailsLine);
-    const amount = this.extractAmount(detailsLine);
-    
-    if (date && amount !== null && merchantCandidate.length > 0) {
-      const cleanMerchant = this.cleanMerchantName(merchantCandidate);
-      if (cleanMerchant) {
-        return {
-          date: this.normalizeDate(date),
-          merchant: cleanMerchant,
-          amount
-        };
-      }
-    }
-
-    return null;
-  }
-
   private static shouldSkipLine(line: string): boolean {
     return this.skipPatterns.some(pattern => pattern.test(line));
-  }
-
-  private static isTransactionSectionHeader(line: string): boolean {
-    return this.transactionSectionPatterns.some(pattern => pattern.test(line));
-  }
-
-  private static isTableHeader(line: string): boolean {
-    return this.tableHeaderPatterns.some(pattern => pattern.test(line));
-  }
-
-  private static looksLikeTransaction(line: string): boolean {
-    const hasDate = this.extractDate(line) !== null;
-    const hasAmount = this.extractAmount(line) !== null;
-    return hasDate || hasAmount;
   }
 
   private static extractDate(line: string): string | null {
@@ -304,120 +224,68 @@ export class TransactionParser {
     return null;
   }
 
-  private static extractAmount(line: string): number | null {
-    // Enhanced amount patterns that handle negative values
-    const enhancedAmountPatterns = [
-      /([-]?[\d,]+\.\d{2})/g,              // Handles negative amounts: -59.61, 2724.82
-      /\$?([-]?[\d,]+\.\d{2})/g,           // With optional dollar sign
-      /([-]\s*[\d,]+\.\d{2})/g,            // Negative with space: - 59.61
-    ];
-
-    for (const pattern of enhancedAmountPatterns) {
-      const matches = [...line.matchAll(pattern)];
-      if (matches.length > 0) {
-        // Get the last match (usually the amount at the end of the line)
-        const lastMatch = matches[matches.length - 1];
-        const cleanAmount = lastMatch[1].replace(/[$,\s]/g, '');
-        const amount = parseFloat(cleanAmount);
-        if (!isNaN(amount)) {
-          return amount;
-        }
+  private static extractAmount(line: string): string | null {
+    for (const pattern of this.amountPatterns) {
+      const match = line.match(pattern);
+      if (match) {
+        return match[1];
       }
     }
     return null;
   }
 
-  private static extractMerchant(line: string, date: string | null, amount: number | null): string | null {
+  private static extractMerchant(line: string, dateStr?: string, amountStr?: string): string | null {
     let merchant = line;
-
-    // Remove date from merchant name
-    if (date) {
-      merchant = merchant.replace(date, '').trim();
-    }
-
-    // Remove amount from merchant name
-    if (amount !== null) {
-      const amountPatterns = [
-        new RegExp(`\\$?${amount}`, 'g'),
-        new RegExp(`\\$?${amount.toFixed(2)}`, 'g'),
-        new RegExp(`\\$?${amount.toLocaleString()}`, 'g')
-      ];
-      
-      amountPatterns.forEach(pattern => {
-        merchant = merchant.replace(pattern, '').trim();
-      });
-    }
-
-    return this.cleanMerchantName(merchant);
-  }
-
-  private static cleanMerchantName(merchant: string): string | null {
-    if (!merchant) return null;
-
-    // Clean up merchant name while preserving location information
-    let cleaned = merchant
-      .replace(/\s+/g, ' ')                           // Normalize whitespace
-      .replace(/^(DEBIT|CREDIT|ACH|PURCHASE|PAYMENT)\s*/i, '') // Remove banking prefixes
-      .replace(/\s+(DEBIT|CREDIT|ACH|PURCHASE|PAYMENT)$/i, '') // Remove banking suffixes
-      .replace(/^\s*[-#*]+\s*/, '')                   // Remove leading separators
-      .replace(/\s*[-#*]+\s*$/, '')                   // Remove trailing separators
-      .replace(/^(POS|CARD)\s*/i, '')                 // Remove POS/CARD prefixes (keep ATM)
-      .replace(/\s*\bCR\b\s*$/i, '')                  // Remove CR suffix
-      .replace(/\s*\bDR\b\s*$/i, '')                  // Remove DR suffix
-      .trim();
-
-    // Handle specific transaction types while preserving important details
-    if (cleaned.toLowerCase().includes('atm')) {
-      // Keep ATM transactions as-is since they contain location info
-      return cleaned;
+    
+    // Remove date from the beginning
+    if (dateStr) {
+      merchant = merchant.replace(new RegExp('^' + dateStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), '').trim();
     }
     
-    if (cleaned.toLowerCase().includes('check')) {
-      // Keep check transactions with check numbers
-      return cleaned;
+    // Remove amount from the end
+    if (amountStr) {
+      merchant = merchant.replace(new RegExp(amountStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'), '').trim();
     }
-
-    return cleaned.length > 0 ? cleaned : null;
+    
+    // Clean up any remaining artifacts
+    merchant = merchant.replace(/\s+/g, ' ').trim();
+    
+    return merchant.length > 2 ? merchant : null;
   }
 
-  private static normalizeDate(dateStr: string, currentYear: number = 2018): string {
-    try {
-      let date: Date;
-      
-      // Handle MM/DD/YYYY format
-      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
-        const [month, day, year] = dateStr.split('/');
-        date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-      }
-      // Handle MM-DD format (use provided year, default to 2018)
-      else if (/^\d{2}-\d{2}$/.test(dateStr)) {
-        const [month, day] = dateStr.split('-');
-        date = new Date(currentYear, parseInt(month) - 1, parseInt(day));
-      }
-      // Handle MM/DD format (use provided year, default to 2018) 
-      else if (/^\d{1,2}\/\d{1,2}$/.test(dateStr)) {
-        const [month, day] = dateStr.split('/');
-        date = new Date(currentYear, parseInt(month) - 1, parseInt(day));
-      }
-      // Handle other formats
-      else {
-        date = new Date(dateStr);
-        // If no year specified and date is invalid, try with current year
-        if (isNaN(date.getTime())) {
-          date = new Date(currentYear + '-' + dateStr);
-        }
-      }
-      
-      if (isNaN(date.getTime())) {
-        console.warn('Could not parse date:', dateStr);
-        return dateStr; // Return original if can't parse
-      }
-      
-      return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
-    } catch (error) {
-      console.warn('Date normalization error:', dateStr, error);
+  private static cleanMerchantName(merchant: string): string {
+    return merchant
+      .replace(/\b\d{4,}\b/g, '') // Remove long numbers (transaction IDs)
+      .replace(/\b(Check|Ck|#)\s*\d+/gi, '') // Remove check references unless it's the main description
+      .replace(/\b(Ref|Reference|ID)[\s:]*\d+/gi, '') // Remove reference numbers
+      .replace(/\b(Auth|Authorization)[\s:]*\w+/gi, '') // Remove authorization codes
+      .replace(/\s+/g, ' ')
+      .replace(/[^\w\s#&.-]/g, '')
+      .trim();
+  }
+
+  private static normalizeDate(dateStr: string, currentYear: number = 2018): string | null {
+    // Handle MM/DD/YYYY format
+    const fullDateMatch = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (fullDateMatch) {
+      const [, month, day, year] = fullDateMatch;
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    
+    // Handle MM/DD format (use 2018 for Wells Fargo PDF)
+    const shortDateMatch = dateStr.match(/(\d{1,2})\/(\d{1,2})/);
+    if (shortDateMatch) {
+      const [, month, day] = shortDateMatch;
+      return `2018-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    
+    // Handle YYYY-MM-DD format (already normalized)
+    const isoDateMatch = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (isoDateMatch) {
       return dateStr;
     }
+    
+    return null;
   }
 
   private static deduplicateTransactions(transactions: RawTransaction[]): RawTransaction[] {

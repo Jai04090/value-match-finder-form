@@ -3,15 +3,15 @@ import { RawTransaction, CategorizedTransaction, TransactionCategory, KeywordMap
 export class TransactionCategorizer {
   private static readonly defaultKeywordMap: KeywordMap = {
     Banking: [
-      'deposit', 'interest payment', 'ach credit', 'wire transfer', 'stripe'
+      'deposit', 'interest payment', 'ach credit', 'wire transfer', 'stripe', 'ach debit'
     ],
     ATM: [
-      'atm withdrawal', 'atm check', 'cash advance', 'atm fee'
+      'atm withdrawal', 'atm check', 'cash advance', 'atm fee', 'atm deposit'
     ],
     Retail: [
       'costco', 'cintas', 'office max', 'officemax', 'fedex', 'ups', 'amazon', 
       'walmart', 'target', 'home depot', 'lowes', 'best buy', 'macy', 'nordstrom', 
-      'gap', 'nike', 'apple store', 'cvs', 'walgreens', 'store', 'shop'
+      'gap', 'nike', 'apple store', 'cvs', 'walgreens', 'store', 'shop', 'whse'
     ],
     Food: [
       'starbucks', '7-eleven', '7 eleven', 'panera', 'panera bread', 'mcdonald', 
@@ -20,10 +20,10 @@ export class TransactionCategorizer {
     ],
     Subscriptions: [
       'comcast', 'vivint', 'netflix', 'spotify', 'subscription', 'monthly', 
-      'annual', 'membership', 'recurring'
+      'annual', 'membership', 'recurring', 'at&t', 'att', 'verizon', 'tmobile'
     ],
     Other: [
-      'check', 'bill pay', 'payment', 'fee', 'charge'
+      'check #', 'bill pay', 'payment', 'fee', 'charge', 'deposited or cashed check'
     ]
   };
 
@@ -46,18 +46,23 @@ export class TransactionCategorizer {
   ): TransactionCategory {
     const merchantLower = transaction.merchant.toLowerCase();
     
-    // Special handling for ATM transactions first
-    if (merchantLower.includes('atm')) {
+    // Special handling for ATM transactions first (most specific)
+    if (merchantLower.includes('atm withdrawal') || 
+        merchantLower.includes('atm check') || 
+        merchantLower.includes('atm deposit') ||
+        merchantLower.includes('atm fee')) {
       return 'ATM';
     }
     
     // Check for check transactions
-    if (merchantLower.includes('check #') || merchantLower.includes('bill pay')) {
+    if (merchantLower.includes('check #') || 
+        merchantLower.includes('deposited or cashed check') ||
+        merchantLower.includes('bill pay')) {
       return 'Other';
     }
     
     // Check categories in specific order to avoid Banking over-classification
-    const categoriesOrder: (keyof KeywordMap)[] = ['Food', 'Retail', 'Subscriptions', 'ATM', 'Other', 'Banking'];
+    const categoriesOrder: (keyof KeywordMap)[] = ['Food', 'Retail', 'Subscriptions', 'Other', 'Banking'];
     
     for (const category of categoriesOrder) {
       const keywords = keywordMap[category] || [];
