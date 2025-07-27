@@ -86,114 +86,125 @@ export class TransactionParser {
   ];
 
   private static preprocessText(text: string): string {
-    console.log('🔧 Starting Wells Fargo-specific text preprocessing...');
-    console.log('📄 Original text length:', text.length);
+    console.log('🔧 Starting text preprocessing...');
+    console.log('📄 Original text sample:', text.substring(0, 300));
     
+    // Split into lines and filter early
     const lines = text.split('\n');
     console.log(`📄 Total lines before filtering: ${lines.length}`);
     
-    // Find the Transaction history section specifically
-    let inTransactionHistory = false;
-    let inContinuedHistory = false;
+    // First pass: Remove document metadata and obvious non-transaction content
+    const firstPassLines = lines.filter(line => {
+      const trimmed = line.trim();
+      if (!trimmed) return false;
+      
+      // Skip document metadata using document skip patterns
+      if (this.documentSkipPatterns.some(pattern => pattern.test(trimmed))) {
+        console.log('🗑️ Skipping document metadata:', trimmed);
+        return false;
+      }
+      
+      return true;
+    });
+    
+    console.log(`📄 After document filter: ${firstPassLines.length} lines`);
+    
+    // Second pass: Find transaction data sections
+    let inTransactionSection = false;
     const transactionLines: string[] = [];
     
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+    for (const line of firstPassLines) {
+      const trimmed = line.trim();
       
-      // Skip empty lines
-      if (!line) continue;
-      
-      // Skip document metadata
-      if (this.documentSkipPatterns.some(pattern => pattern.test(line))) {
+      // Check if we're entering a transaction section
+      if (this.transactionSectionPatterns.some(pattern => pattern.test(trimmed))) {
+        console.log('📍 Found transaction section:', trimmed);
+        inTransactionSection = true;
         continue;
       }
       
-      // Detect start of transaction history
-      if (line.includes('Transaction history')) {
-        console.log('📍 Found Transaction history section at line:', i + 1);
-        inTransactionHistory = true;
+      // Check if this line has transaction indicators
+      const hasDatePattern = /\d{1,2}\/\d{1,2}(\/\d{4})?/.test(trimmed);
+      const hasAmountPattern = /\$?\d+\.\d{2}/.test(trimmed);
+      const hasAccountPattern = /\*{4}\d{4}/.test(trimmed);
+      const hasMerchantIndicators = /(corp|inc|llc|company|store|market|gas|restaurant|bank|atm|check|debit|credit|deposit|withdrawal)/i.test(trimmed);
+      const hasTransactionStructure = hasDatePattern && (hasAmountPattern || hasMerchantIndicators);
+      
+      // Keep lines that look like transactions
+      if (hasTransactionStructure || (inTransactionSection && (hasDatePattern || hasAmountPattern))) {
+        console.log('✅ Keeping transaction line:', trimmed);
+        transactionLines.push(trimmed);
         continue;
       }
       
-      // Detect continued transaction history on subsequent pages
-      if (line.includes('Transaction history (continued)')) {
-        console.log('📍 Found Transaction history (continued) section at line:', i + 1);
-        inContinuedHistory = true;
+      // Skip obvious headers and system lines
+      if (this.shouldSkipLine(trimmed)) {
         continue;
       }
       
-      // Stop at summary sections
-      if (line.includes('Ending balance') || 
-          line.includes('Summary of checks') || 
-          line.includes('Monthly service fee') ||
-          line.includes('Totals $')) {
-        console.log('📍 Found end of transaction section at line:', i + 1);
-        inTransactionHistory = false;
-        inContinuedHistory = false;
-        continue;
-      }
-      
-      // Skip table headers
-      if (line.includes('Date') && line.includes('Description') && 
-          (line.includes('Deposits') || line.includes('Withdrawals') || line.includes('Balance'))) {
-        continue;
-      }
-      
-      // If we're in a transaction section, keep everything except obvious headers
-      if (inTransactionHistory || inContinuedHistory) {
-        // Skip obvious non-transaction lines
-        if (this.shouldSkipLine(line)) {
-          continue;
-        }
-        
-        console.log(`✅ Keeping transaction line ${i + 1}:`, line);
-        transactionLines.push(line);
+      // Keep lines with substantial content that might contain transaction info
+      if (trimmed.length > 15 && (hasDatePattern || hasAmountPattern || hasMerchantIndicators)) {
+        console.log('🔍 Keeping potential transaction line:', trimmed);
+        transactionLines.push(trimmed);
       }
     }
     
-    console.log(`🔧 Extracted ${transactionLines.length} potential transaction lines from Wells Fargo statement`);
-    
-    // Log sample lines for debugging
-    if (transactionLines.length > 0) {
-      console.log('📄 First 10 transaction lines:');
-      transactionLines.slice(0, 10).forEach((line, idx) => {
-        console.log(`  ${idx + 1}: ${line}`);
-      });
-    }
+    console.log(`🔧 Filtered from ${lines.length} to ${transactionLines.length} lines`);
+    console.log('📄 Sample filtered lines:', transactionLines.slice(0, 10));
     
     return transactionLines.join('\n');
   }
 
   static parseTransactions(redactedText: string): RawTransaction[] {
-    console.log('🔧 Wells Fargo TransactionParser.parseTransactions called');
+    console.log('🔧 TransactionParser.parseTransactions called');
     console.log('📄 Original text length:', redactedText.length);
+    console.log('📄 First 500 chars:', redactedText.substring(0, 500));
     
     const preprocessedText = this.preprocessText(redactedText);
     console.log('📄 Preprocessed text length:', preprocessedText.length);
+    console.log('📄 Preprocessed first 500 chars:', preprocessedText.substring(0, 500));
     
     const lines = preprocessedText.split('\n').filter(line => line.trim());
     console.log('📄 Total lines after preprocessing:', lines.length);
+    console.log('📄 Sample lines:', lines.slice(0, 10));
     
     const transactions: RawTransaction[] = [];
-    const currentYear = 2018;
+    const currentYear = 2018; // Wells Fargo PDF is from 2018
     
-    // Combine adjacent lines that might be part of the same transaction
-    const combinedLines = this.combineMultiLineTransactions(lines);
-    console.log('📄 Combined lines count:', combinedLines.length);
-    
-    for (let i = 0; i < combinedLines.length; i++) {
-      const line = combinedLines[i].trim();
-      console.log(`🔍 Processing combined line ${i + 1}:`, line);
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      console.log(`🔍 Processing line ${i + 1}:`, line);
       
-      // Try Wells Fargo specific parsing patterns
-      const parsedTransactions = this.parseWellsFargoTransactionLine(line, currentYear);
-      if (parsedTransactions.length > 0) {
-        console.log(`✅ Found ${parsedTransactions.length} Wells Fargo transactions:`, parsedTransactions);
-        transactions.push(...parsedTransactions);
+      if (this.shouldSkipLine(line)) {
+        console.log(`⏭️ Skipping line ${i + 1} (matches skip pattern)`);
         continue;
       }
       
-      console.log(`❌ No Wells Fargo transaction found in line ${i + 1}`);
+      // Check for multiple transactions in one line
+      const multiTransactions = this.parseMultipleTransactionsFromLine(line, currentYear);
+      if (multiTransactions.length > 0) {
+        console.log(`✅ Found ${multiTransactions.length} transactions in line ${i + 1}:`, multiTransactions);
+        transactions.push(...multiTransactions);
+        continue;
+      }
+      
+      // Try to parse as a single tabular transaction
+      const tabularTransaction = this.parseTabularTransaction(line, currentYear);
+      if (tabularTransaction) {
+        console.log(`✅ Parsed tabular transaction from line ${i + 1}:`, tabularTransaction);
+        transactions.push(tabularTransaction);
+        continue;
+      }
+      
+      // Try to parse as a regular transaction line
+      const transaction = this.parseTransactionLine(line);
+      if (transaction) {
+        console.log(`✅ Parsed regular transaction from line ${i + 1}:`, transaction);
+        transactions.push(transaction);
+        continue;
+      }
+      
+      console.log(`❌ No transaction found in line ${i + 1}`);
     }
     
     console.log(`📊 Total transactions found: ${transactions.length}`);
@@ -203,217 +214,143 @@ export class TransactionParser {
     return deduplicatedTransactions;
   }
 
-  // Combine lines that are part of multi-line transactions
-  private static combineMultiLineTransactions(lines: string[]): string[] {
-    const combinedLines: string[] = [];
-    let currentTransaction = '';
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      
-      // If line starts with a date, it's likely a new transaction
-      if (/^\d{1,2}\/\d{1,2}/.test(line)) {
-        // Save previous transaction if it exists
-        if (currentTransaction) {
-          combinedLines.push(currentTransaction.trim());
-        }
-        // Start new transaction
-        currentTransaction = line;
-      } else {
-        // Continuation of current transaction
-        currentTransaction += ' ' + line;
-      }
-    }
-    
-    // Add the last transaction
-    if (currentTransaction) {
-      combinedLines.push(currentTransaction.trim());
-    }
-    
-    return combinedLines;
-  }
-
-  // Parse Wells Fargo specific transaction formats
-  private static parseWellsFargoTransactionLine(line: string, currentYear: number): RawTransaction[] {
+  private static parseMultipleTransactionsFromLine(line: string, currentYear: number): RawTransaction[] {
     const transactions: RawTransaction[] = [];
     
-    // Wells Fargo patterns based on the actual statement format
-    const wellsFargoPatterns = [
-      // Basic format: 7/2 ATM Check Deposit on 07/02 1037 S Main St Salinas CA 0003304 ATM ID 0409A Card 1752 2,724.82
-      {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
-        type: 'basic'
-      },
-      // Check format: 7/2 1255 Check 190.00 2,850.00
-      {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(\d+)\s+(Check)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
-        type: 'check'
-      },
-      // Deposit/Credit format: 7/2 1256 Deposited OR Cashed Check 250.00
-      {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
-        type: 'deposit'
-      },
-      // Purchase format: 7/2 Purchase authorized on 06/30 Costco Whse #0472 Salinas CA P00308181728100479 Card 8135 59.61
-      {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(Purchase authorized on \d{1,2}\/\d{1,2}\s+.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
-        type: 'purchase'
-      },
-      // Transfer format: 7/3 Online Transfer to Rosendo Serrano Business Checking xxxxxx8620 Ref #Ib04Sp6Dcp on 07/03/18 70.00
-      {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(.*?Transfer.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
-        type: 'transfer'
-      },
-      // ATM format: 7/23 ATM Withdrawal authorized on 07/21 1037 S Main St Salinas CA 0008816 ATM ID 0409C Card 8135 800.00
-      {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(ATM.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
-        type: 'atm'
-      },
-      // Fee format: 7/18 Overdraft Fee for a Transaction Posted on 07/17 $700.00 Capital One Crcardpmt 180715 819730180015 878 8119618411Serrano Rose 35.00
-      {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(.*?Fee.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
-        type: 'fee'
-      },
-      // ACH format: 7/17 < Business to Business ACH Debit - Capital One Crcardpmt 180715 819730180015878 8119618411Serrano Rose 700.00
-      {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(.*?ACH.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
-        type: 'ach'
-      },
-      // Mobile deposit format: 7/24 Mobile Deposit : Ref Number :411240823221 513.88
-      {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(Mobile Deposit.*?)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
-        type: 'mobile_deposit'
-      },
-      // Branch withdrawal format: 7/27 Withdrawal Made In A Branch/Store 6,700.00
-      {
-        pattern: /^(\d{1,2}\/\d{1,2})\s+(Withdrawal Made In A Branch\/Store)\s+(\d{1,3}(?:,\d{3})*\.?\d{2})\s*$/,
-        type: 'branch_withdrawal'
+    // Enhanced pattern to detect concatenated transactions with locations
+    const concatenatedPattern = /(.+?)\s+([A-Z]{2})([A-Z][a-z].+)/;
+    const concatenatedMatch = line.match(concatenatedPattern);
+    
+    if (concatenatedMatch) {
+      // Try to split concatenated merchants
+      const [, firstPart, stateCode, secondPart] = concatenatedMatch;
+      
+      // Look for embedded transactions in the concatenated string
+      const transactionPatterns = [
+        /(\d{1,2}\/\d{1,2})\s+([^$]+?)\s+(\$?\d+\.?\d*)/g,
+        /(Purchase authorized on \d{1,2}\/\d{1,2})\s+([^$]+?)\s+(\$?\d+\.?\d*)/g,
+        /(Withdrawal.*?on \d{1,2}\/\d{1,2})\s+([^$]+?)\s+(\$?\d+\.?\d*)/g
+      ];
+      
+      for (const pattern of transactionPatterns) {
+        let match;
+        while ((match = pattern.exec(line)) !== null) {
+          const [, dateOrPrefix, merchantStr, amountStr] = match;
+          
+          // Extract date from prefix if needed
+          const dateMatch = dateOrPrefix.match(/(\d{1,2}\/\d{1,2})/);
+          if (!dateMatch) continue;
+          
+          const normalizedDate = this.normalizeDate(dateMatch[1], currentYear);
+          if (!normalizedDate) continue;
+          
+          const amount = parseFloat(amountStr.replace(/\$/, ''));
+          if (isNaN(amount)) continue;
+          
+          const cleanMerchant = this.cleanMerchantName(merchantStr);
+          if (!cleanMerchant || cleanMerchant.length < 2) continue;
+          
+          const transaction: RawTransaction = {
+            date: normalizedDate,
+            merchant: cleanMerchant,
+            amount: -Math.abs(amount)
+          };
+          
+          if (this.isValidTransaction(transaction)) {
+            transactions.push(transaction);
+          }
+        }
       }
-    ];
-
-    for (const { pattern, type } of wellsFargoPatterns) {
-      const match = line.match(pattern);
-      if (match) {
-        console.log(`🎯 Matched ${type} pattern:`, match);
+    } else {
+      // Standard multi-transaction pattern
+      const multiTransactionPattern = /(\d{1,2}\/\d{1,2})\s+([^$]+?)\s+(\$?\d+\.?\d*)/g;
+      let match;
+      
+      while ((match = multiTransactionPattern.exec(line)) !== null) {
+        const [, dateStr, merchantStr, amountStr] = match;
         
-        let transaction: RawTransaction | null = null;
+        const normalizedDate = this.normalizeDate(dateStr, currentYear);
+        if (!normalizedDate) continue;
         
-        if (type === 'check') {
-          // Handle check format: date, checkNumber, "Check", amount, balance
-          const [, dateStr, checkNumber, , amountStr] = match;
-          const normalizedDate = this.normalizeDate(dateStr, currentYear);
-          const amount = -parseFloat(amountStr.replace(/,/g, ''));
-          
-          if (normalizedDate && !isNaN(amount)) {
-            transaction = {
-              date: normalizedDate,
-              merchant: `Check #${checkNumber}`,
-              amount: amount
-            };
-          }
-        } else if (type === 'basic' || type === 'deposit' || type === 'purchase' || 
-                   type === 'transfer' || type === 'atm' || type === 'fee' || 
-                   type === 'ach' || type === 'mobile_deposit' || type === 'branch_withdrawal') {
-          // Handle other formats: date, description, amount
-          const [, dateStr, description, amountStr] = match;
-          const normalizedDate = this.normalizeDate(dateStr, currentYear);
-          let amount = parseFloat(amountStr.replace(/,/g, ''));
-          
-          // Determine if it's a debit or credit based on description and type
-          const isCredit = description.toLowerCase().includes('deposit') || 
-                          description.toLowerCase().includes('credit') ||
-                          description.toLowerCase().includes('transfer from') ||
-                          description.toLowerCase().includes('mobile deposit') ||
-                          type === 'deposit' || type === 'mobile_deposit';
-          
-          if (!isCredit) {
-            amount = -Math.abs(amount);
-          }
-          
-          if (normalizedDate && !isNaN(amount)) {
-            const cleanMerchant = this.cleanWellsFargoMerchant(description, type);
-            if (cleanMerchant) {
-              transaction = {
-                date: normalizedDate,
-                merchant: cleanMerchant,
-                amount: amount
-              };
-            }
-          }
-        }
+        const amount = parseFloat(amountStr.replace(/\$/, ''));
+        if (isNaN(amount)) continue;
         
-        if (transaction && this.isValidTransaction(transaction)) {
+        const cleanMerchant = this.cleanMerchantName(merchantStr);
+        if (!cleanMerchant || cleanMerchant.length < 2) continue;
+        
+        const transaction: RawTransaction = {
+          date: normalizedDate,
+          merchant: cleanMerchant,
+          amount: -Math.abs(amount)
+        };
+        
+        if (this.isValidTransaction(transaction)) {
           transactions.push(transaction);
-          console.log(`✅ Successfully parsed transaction:`, transaction);
         }
-        
-        break; // Stop after first successful match
       }
     }
     
     return transactions;
   }
 
-  // Clean Wells Fargo merchant names specifically
-  private static cleanWellsFargoMerchant(description: string, type: string): string {
-    if (!description) return '';
-    
-    let merchant = description.trim();
-    
-    // Handle specific Wells Fargo transaction types
-    if (type === 'branch_withdrawal') {
-      return 'Branch Withdrawal';
+  private static parseTabularTransaction(line: string, currentYear: number): RawTransaction | null {
+    // Try Wells Fargo patterns for single transactions
+    for (const pattern of this.wellsFargoPatterns.slice(0, 2)) { // Use only single transaction patterns
+      const match = line.match(pattern);
+      if (match) {
+        const [, dateStr, merchantStr, amountStr] = match;
+        
+        const date = this.normalizeDate(dateStr, currentYear);
+        const merchant = this.cleanMerchantName(merchantStr);
+        const amount = parseFloat(amountStr);
+        
+        if (date && merchant && !isNaN(amount)) {
+          return { date, merchant, amount };
+        }
+      }
     }
     
-    if (type === 'mobile_deposit') {
-      return 'Mobile Deposit';
+    // Fallback to extracting components separately
+    const dateStr = this.extractDate(line);
+    const amountStr = this.extractAmount(line);
+    const merchantStr = this.extractMerchant(line, dateStr, amountStr);
+    
+    if (dateStr && merchantStr && amountStr) {
+      const date = this.normalizeDate(dateStr, currentYear);
+      const merchant = this.cleanMerchantName(merchantStr);
+      const amount = parseFloat(amountStr);
+      
+      if (date && merchant && !isNaN(amount)) {
+        return { date, merchant, amount };
+      }
     }
     
-    // Remove common Wells Fargo prefixes
-    const prefixPatterns = [
-      /^Purchase authorized on \d{1,2}\/\d{1,2}\s+/,
-      /^ATM Check Deposit on \d{1,2}\/\d{1,2}\s+/,
-      /^ATM Withdrawal authorized on \d{1,2}\/\d{1,2}\s+/,
-      /^Online Transfer (to|from)\s+/,
-      /^Recurring Transfer (to|from)\s+/,
-      /^Recurring Payment authorized on \d{1,2}\/\d{1,2}\s+/,
-      /^< Business to Business ACH Debit - /,
-      /^Overdraft Fee for a Transaction Posted on \d{1,2}\/\d{1,2}\s+/,
-      /^Edeposit IN Branch\/Store \d{1,2}\/\d{1,2}\/\d{2} \d{2}:\d{2}:\d{2} [AP]m\s+/i
-    ];
-    
-    prefixPatterns.forEach(pattern => {
-      merchant = merchant.replace(pattern, '');
-    });
-    
-    // Remove location and card information
-    merchant = merchant.replace(/\s+\d+\s+S\s+Main\s+St\s+Salinas\s+CA.*$/i, '');
-    merchant = merchant.replace(/\s+ATM\s+ID\s+\w+\s+Card\s+\d+.*$/i, '');
-    merchant = merchant.replace(/\s+P\d+\s+Card\s+\d+.*$/i, '');
-    merchant = merchant.replace(/\s+S\d+\s+Card\s+\d+.*$/i, '');
-    merchant = merchant.replace(/\s+Ref\s+#\w+.*$/i, '');
-    merchant = merchant.replace(/\s+xxxxxx\d+.*$/i, '');
-    
-    // Clean up specific Wells Fargo artifacts
-    merchant = merchant.replace(/\s+\d{10,}.*$/, ''); // Remove long reference numbers
-    merchant = merchant.replace(/\s+\d{6}\s+\d+.*$/, ''); // Remove date + reference patterns
-    
-    // Handle specific merchant patterns
-    if (merchant.includes('Costco Whse')) {
-      merchant = merchant.replace(/Costco Whse #\d+/, 'Costco');
-    }
-    
-    if (merchant.includes('7-Eleven')) {
-      merchant = '7-Eleven';
-    }
-    
-    // Remove trailing artifacts
-    merchant = merchant.replace(/\s+[A-Z]{2}\s*$/, ''); // State codes
-    merchant = merchant.replace(/\s+\d+\s*$/, ''); // Trailing numbers
-    
-    return merchant.trim() || 'Unknown Merchant';
+    return null;
   }
 
+  private static parseTransactionLine(line: string): RawTransaction | null {
+    try {
+      const date = this.extractDate(line);
+      const amount = this.extractAmount(line);
+      const merchant = this.extractMerchant(line, date, amount);
+
+      if (date && amount !== null && merchant) {
+        const normalizedDate = this.normalizeDate(date);
+        const parsedAmount = parseFloat(amount);
+        if (normalizedDate && !isNaN(parsedAmount)) {
+          return {
+            date: normalizedDate,
+            merchant: this.cleanMerchantName(merchant),
+            amount: parsedAmount
+          };
+        }
+      }
+    } catch (error) {
+      // Skip malformed lines
+    }
+    
+    return null;
+  }
 
   private static shouldSkipLine(line: string): boolean {
     return this.skipPatterns.some(pattern => pattern.test(line));
