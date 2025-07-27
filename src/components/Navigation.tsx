@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { LogOut, User, Shield, FileText, Clock } from 'lucide-react';
+import { LogOut, User, Shield, FileText, Clock, Calculator } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 const Navigation = () => {
@@ -61,6 +61,12 @@ const Navigation = () => {
         </Link>
         
         <div className="flex items-center gap-4">
+          <Link to="/bank-statement-parser">
+            <Button variant="ghost" className="flex items-center gap-2">
+              <Calculator className="h-4 w-4" />
+              Statement Parser
+            </Button>
+          </Link>
           {user ? (
             <>
               {userRole === 'staff' && (

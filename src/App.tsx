@@ -22,6 +22,7 @@ import StaffTemplates from "./pages/StaffTemplates";
 import StaffInstitutions from "./pages/StaffInstitutions";
 import StaffApprovals from "./pages/StaffApprovals";
 import InstitutionTemplates from "./pages/InstitutionTemplates";
+import BankStatementParserPage from "./pages/BankStatementParser";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -152,6 +153,14 @@ const App = () => (
               element={
                 <ProtectedRoute requireRole="institution">
                   <InstitutionTemplates />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/bank-statement-parser" 
+              element={
+                <ProtectedRoute requireAuth={false}>
+                  <BankStatementParserPage />
                 </ProtectedRoute>
               } 
             />
