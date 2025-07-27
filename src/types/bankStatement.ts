@@ -9,7 +9,7 @@ export interface CategorizedTransaction extends RawTransaction {
   type?: 'debit' | 'credit';
 }
 
-export type TransactionCategory = 'Banking' | 'ATM' | 'Retail' | 'Food' | 'Subscriptions' | 'Other';
+export type TransactionCategory = 'Banking' | 'ATM' | 'Retail' | 'Food' | 'Subscriptions' | 'Check' | 'Fees' | 'Other';
 
 export interface ParsedFileData {
   rawText: string;

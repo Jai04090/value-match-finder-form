@@ -24,7 +24,27 @@ export class PIIRedactor {
       redactedText = redactedText.replace(pattern, replacement);
     });
 
+    // Post-redaction cleanup: remove trailing fragments after redacted patterns
+    redactedText = this.cleanupTrailingFragments(redactedText);
+
     return redactedText;
+  }
+
+  private static cleanupTrailingFragments(text: string): string {
+    // Remove trailing digits/text after redacted patterns
+    let cleanedText = text;
+    
+    // Clean up patterns like "[REDACTED_PHONE] UT 81.REDACTED_ADDRESS 813"
+    cleanedText = cleanedText.replace(/\[REDACTED_PHONE\]\s+[A-Z]{2}\s+\d+\.\[?REDACTED_[A-Z]+\]?\s*\d*/g, '[REDACTED_PHONE]');
+    cleanedText = cleanedText.replace(/\[REDACTED_ADDRESS\]\s+\d+/g, '[REDACTED_ADDRESS]');
+    cleanedText = cleanedText.replace(/\[REDACTED_EMAIL\]\s+[A-Za-z0-9\s]*\d+/g, '[REDACTED_EMAIL]');
+    
+    // Remove standalone digits that might be fragments
+    cleanedText = cleanedText.replace(/\[REDACTED_[A-Z]+\]\s+\d{1,4}(?!\d)/g, (match) => {
+      return match.replace(/\s+\d{1,4}$/, '');
+    });
+    
+    return cleanedText;
   }
 
   static detectPII(text: string): { type: string; matches: string[] }[] {

@@ -335,29 +335,64 @@ export class TransactionParser {
     return merchant.length > 2 ? merchant : null;
   }
 
-  private static cleanMerchantName(merchant: string): string {
-    return merchant
-      // Remove Wells Fargo specific artifacts
-      .replace(/\*{4}\d{4}/g, '') // Remove masked account numbers
-      .replace(/\b(WELLS\s*FARGO|WF)\b/gi, '') // Remove bank name
-      .replace(/\b(ONLINE\s*TRANSFER|TRANSFER)\b/gi, 'Transfer') // Standardize transfers
-      .replace(/\b(ATM\s*WITHDRAWAL|ATM)\b/gi, 'ATM') // Standardize ATM
-      .replace(/\b(CHECK\s*#|CHECK|CK)\s*\d+/gi, 'Check') // Standardize checks
-      .replace(/\b(DEBIT\s*CARD|CARD)\b/gi, 'Card') // Standardize card transactions
-      .replace(/\b(DEPOSIT|DEP)\b/gi, 'Deposit') // Standardize deposits
-      
-      // Remove transaction IDs and reference numbers
-      .replace(/\b\d{4,}\b/g, '') // Remove long numbers (transaction IDs)
-      .replace(/\b(Ref|Reference|ID|Auth|Authorization)[\s:]*\w+/gi, '') // Remove reference codes
-      .replace(/\b(Confirmation|Conf)[\s:]*\w+/gi, '') // Remove confirmation codes
-      
-      // Clean up formatting
-      .replace(/\s*-\s*/g, ' - ') // Standardize dashes
-      .replace(/\s+/g, ' ') // Multiple spaces to single
-      .replace(/[^\w\s#&.-]/g, '') // Remove special characters except common ones
-      .replace(/^\s*-\s*/, '') // Remove leading dashes
-      .replace(/\s*-\s*$/, '') // Remove trailing dashes
-      .trim();
+  private static cleanMerchantName(rawMerchant: string): string {
+    let merchant = rawMerchant.trim();
+    
+    // Remove Wells Fargo specific patterns
+    merchant = merchant.replace(/\s*Wells Fargo Bank.*$/i, '');
+    merchant = merchant.replace(/\s*WELLS FARGO.*$/i, '');
+    merchant = merchant.replace(/\s*WF\s+.*$/i, '');
+    
+    // Remove common bank artifacts
+    merchant = merchant.replace(/\s*\d{4,}\s*$/, ''); // Remove trailing account numbers
+    merchant = merchant.replace(/\s*#\d+\s*$/, ''); // Remove trailing reference numbers
+    merchant = merchant.replace(/\s*REF\s*#?\s*\d+.*$/i, ''); // Remove reference numbers
+    merchant = merchant.replace(/\s*TXN\s*#?\s*\d+.*$/i, ''); // Remove transaction numbers
+    merchant = merchant.replace(/\s*ID\s*#?\s*\d+.*$/i, ''); // Remove ID numbers
+    
+    // Clean up check references - handle malformed patterns
+    if (merchant.toLowerCase().includes('check')) {
+      // Convert "Check.00 24" or "Check300.00 25" to "Check #24"
+      merchant = merchant.replace(/check\s*\.?\d*\.?\d*\s*(\d+)/i, 'Check #$1');
+      merchant = merchant.replace(/check\s*(\d+)/i, 'Check #$1');
+      // Handle "deposited or cashed check" patterns
+      merchant = merchant.replace(/deposited or cashed check\s*#?\s*(\d+)/i, 'Check #$1');
+    }
+    
+    // Remove PII redaction artifacts that might leak through
+    merchant = merchant.replace(/\s*\d+\.\[?REDACTED_[A-Z]+\]?\s*\d*/g, '');
+    merchant = merchant.replace(/\s*[A-Z]{2}\s+\d+\.\[?REDACTED_[A-Z]+\]?\s*\d*/g, '');
+    
+    // Remove location/state codes at the end
+    merchant = merchant.replace(/\s+[A-Z]{2}\s*\d*\s*$/, '');
+    
+    // Remove dates in various formats
+    merchant = merchant.replace(/\s+\d{1,2}\/\d{1,2}\/?\d{0,4}\s*$/, '');
+    merchant = merchant.replace(/\s+\d{1,2}-\d{1,2}-?\d{0,4}\s*$/, '');
+    
+    // Remove amounts that might have leaked into merchant names
+    merchant = merchant.replace(/\s*\$?\d+\.\d{2}\s*$/, '');
+    merchant = merchant.replace(/\s*\d+\.\d{2}\s*$/, '');
+    
+    // Remove common transaction artifacts
+    merchant = merchant.replace(/\s*POS\s*$/i, '');
+    merchant = merchant.replace(/\s*DEBIT\s*$/i, '');
+    merchant = merchant.replace(/\s*CREDIT\s*$/i, '');
+    merchant = merchant.replace(/\s*PURCHASE\s*$/i, '');
+    merchant = merchant.replace(/\s*WITHDRAWAL\s*$/i, '');
+    
+    // Remove standalone numbers that might be fragments
+    merchant = merchant.replace(/^\d+$/, ''); // If merchant is just a number, clear it
+    
+    // Clean up extra whitespace
+    merchant = merchant.replace(/\s+/g, ' ').trim();
+    
+    // If merchant ends up empty or too short, mark as unknown
+    if (!merchant || merchant.length < 2) {
+      merchant = 'Unknown Merchant';
+    }
+    
+    return merchant;
   }
 
   private static normalizeDate(dateStr: string, currentYear: number = 2018): string | null {
