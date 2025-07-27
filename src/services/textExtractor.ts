@@ -28,13 +28,58 @@ export class TextExtractor {
         const page = await pdf.getPage(pageNum);
         const textContent = await page.getTextContent();
         
-        const pageText = textContent.items
-          .map((item: any) => item.str)
-          .join(' ');
+        // Group text items by their Y coordinate to preserve line structure
+        const lineGroups = new Map<number, any[]>();
         
-        fullText += pageText + '\n';
+        textContent.items.forEach((item: any) => {
+          if (item.str && item.str.trim()) {
+            // Round Y coordinate to group items on the same line
+            const yCoord = Math.round(item.transform[5]);
+            if (!lineGroups.has(yCoord)) {
+              lineGroups.set(yCoord, []);
+            }
+            lineGroups.get(yCoord)!.push(item);
+          }
+        });
+        
+        // Sort line groups by Y coordinate (top to bottom)
+        const sortedLines = Array.from(lineGroups.entries())
+          .sort(([y1], [y2]) => y2 - y1); // Higher Y values come first (top of page)
+        
+        // Build text line by line
+        const pageLines = sortedLines.map(([, items]) => {
+          // Sort items within a line by X coordinate (left to right)
+          const sortedItems = items.sort((a, b) => a.transform[4] - b.transform[4]);
+          
+          // Join items with appropriate spacing
+          let lineText = '';
+          let lastX = -1;
+          
+          sortedItems.forEach((item, index) => {
+            const currentX = item.transform[4];
+            const text = item.str.trim();
+            
+            if (text) {
+              // Add spacing between items if there's a significant gap
+              if (lastX >= 0 && currentX - lastX > 20) {
+                lineText += ' ';
+              }
+              
+              lineText += (index === 0 ? '' : ' ') + text;
+              lastX = currentX + (item.width || 0);
+            }
+          });
+          
+          return lineText.trim();
+        }).filter(line => line.length > 0);
+        
+        fullText += pageLines.join('\n') + '\n';
+        
+        console.log(`📄 Page ${pageNum} extracted ${pageLines.length} lines`);
+        console.log('📄 Sample lines:', pageLines.slice(0, 5));
       }
       
+      console.log(`📄 Total extracted text length: ${fullText.length}`);
       return fullText.trim();
     } catch (error) {
       throw new Error(`Failed to extract text from PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);

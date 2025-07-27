@@ -76,24 +76,33 @@ export class TransactionParser {
       // Skip empty lines
       if (!trimmed) return false;
       
-      // Skip lines that don't contain dates or amounts - but be more permissive
-      const hasDatePattern = /\d{1,2}\/\d{1,2}/.test(trimmed);
-      const hasAmountPattern = /\d+\.\d{2}/.test(trimmed);
+      // Skip very short lines (likely fragments)
+      if (trimmed.length < 5) return false;
       
-      if (!hasDatePattern && !hasAmountPattern) {
-        return false;
+      // Be more inclusive - keep lines that might contain transaction data
+      // Look for patterns that suggest transaction content
+      const hasDatePattern = /\d{1,2}\/\d{1,2}/.test(trimmed);
+      const hasAmountPattern = /\$?\d+\.\d{2}/.test(trimmed);
+      const hasAccountPattern = /\*{4}\d{4}/.test(trimmed); // Wells Fargo account pattern
+      const hasTransactionType = /(debit|credit|withdrawal|deposit|check)/i.test(trimmed);
+      const hasMerchantIndicators = /(corp|inc|llc|company|store|market|gas|restaurant)/i.test(trimmed);
+      
+      // Keep lines that have at least one transaction indicator
+      if (hasDatePattern || hasAmountPattern || hasAccountPattern || hasTransactionType || hasMerchantIndicators) {
+        return true;
       }
       
-      // Skip obvious headers and footers
+      // Skip lines that are definitely headers, footers, or account info
       if (this.shouldSkipLine(trimmed)) {
         return false;
       }
       
-      return true;
+      // Keep lines with enough content that might be transactions
+      return trimmed.length > 20;
     });
     
     console.log(`🔧 Filtered from ${lines.length} to ${filteredLines.length} lines`);
-    console.log('📄 Sample filtered lines:', filteredLines.slice(0, 5));
+    console.log('📄 Sample filtered lines:', filteredLines.slice(0, 10));
     return filteredLines.join('\n');
   }
 
