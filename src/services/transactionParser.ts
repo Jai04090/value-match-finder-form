@@ -438,7 +438,16 @@ export class TransactionParser {
     for (const pattern of this.amountPatterns) {
       const match = line.match(pattern);
       if (match) {
-        return match[1];
+        const amountStr = match[1];
+        
+        // Clean the amount string
+        const cleanAmount = amountStr.replace(/[$,]/g, '');
+        const amount = parseFloat(cleanAmount);
+        
+        // Validate amount is reasonable
+        if (!isNaN(amount) && amount > 0 && amount <= 100000) {
+          return amountStr;
+        }
       }
     }
     return null;
@@ -483,6 +492,25 @@ export class TransactionParser {
     ];
 
     verbosePrefixPatterns.forEach(pattern => {
+      merchant = merchant.replace(pattern, '');
+    });
+
+    // Remove common generic terms that indicate parsing artifacts
+    const genericTerms = [
+      /^Fee period\s*[\/\-]\s*$/i,
+      /^Recurring\s*$/i,
+      /^Online\s*$/i,
+      /^Transfer\s*$/i,
+      /^Payment\s*$/i,
+      /^Deposit\s*$/i,
+      /^Withdrawal\s*$/i,
+      /^Transaction\s*$/i,
+      /^Purchase\s*$/i,
+      /^Debit\s*$/i,
+      /^Credit\s*$/i
+    ];
+
+    genericTerms.forEach(pattern => {
       merchant = merchant.replace(pattern, '');
     });
 
@@ -542,7 +570,11 @@ export class TransactionParser {
       /\s*CREDIT\s*$/i,
       /\s*PURCHASE\s*$/i,
       /\s*WITHDRAWAL\s*$/i,
-      /\s*DEPOSIT\s*$/i
+      /\s*DEPOSIT\s*$/i,
+      /\s*Transfer\s*x\s*$/i, // Remove "Transfer x" artifacts
+      /\s*period\s*[\/\-]\s*$/i, // Remove "period -" artifacts
+      /\s*Recurring\s*$/i, // Remove standalone "Recurring"
+      /\s*Online\s*$/i // Remove standalone "Online"
     ];
 
     suffixPatterns.forEach(pattern => {
@@ -581,6 +613,21 @@ export class TransactionParser {
     // Remove any remaining punctuation at the end
     merchant = merchant.replace(/[.,;:!?]+$/, '');
     
+    // Final validation - reject if too generic or empty
+    if (!merchant || merchant.length < 2) {
+      return '';
+    }
+    
+    // Reject common generic terms
+    const genericRejections = [
+      'fee period', 'recurring', 'online', 'transfer', 'payment', 
+      'deposit', 'withdrawal', 'transaction', 'purchase', 'debit', 'credit'
+    ];
+    
+    if (genericRejections.includes(merchant.toLowerCase())) {
+      return '';
+    }
+    
     return merchant;
   }
 
@@ -594,20 +641,43 @@ export class TransactionParser {
     const fullDateMatch = dateStr.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
     if (fullDateMatch) {
       const [, month, day, year] = fullDateMatch;
-      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      const yearNum = parseInt(year);
+      
+      // Validate year is reasonable (within 10 years of current year)
+      if (yearNum >= currentYear - 10 && yearNum <= currentYear + 1) {
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      }
+      return null;
     }
     
     // Handle MM/DD format (use current year)
     const shortDateMatch = dateStr.match(/(\d{1,2})[\/\-](\d{1,2})/);
     if (shortDateMatch) {
       const [, month, day] = shortDateMatch;
-      return `${currentYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      const monthNum = parseInt(month);
+      const dayNum = parseInt(day);
+      
+      // Validate month and day
+      if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31) {
+        return `${currentYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      }
+      return null;
     }
     
     // Handle YYYY-MM-DD format (already normalized)
     const isoDateMatch = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
     if (isoDateMatch) {
-      return dateStr;
+      const [, year, month, day] = isoDateMatch;
+      const yearNum = parseInt(year);
+      const monthNum = parseInt(month);
+      const dayNum = parseInt(day);
+      
+      // Validate the date
+      if (yearNum >= currentYear - 10 && yearNum <= currentYear + 1 && 
+          monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31) {
+        return dateStr;
+      }
+      return null;
     }
     
     return null;
@@ -628,7 +698,18 @@ export class TransactionParser {
       /^[A-Z]{1,3}[a-z]{1,3}$/,  // Random short strings like "Dlse Pwcr"
       /^\d+$/,                    // Pure numbers
       /^[.,;:!?\s]+$/,           // Pure punctuation
-      /^(Check|Ck)\s*#?\s*\d*$/i // Just "Check" without merchant
+      /^(Check|Ck)\s*#?\s*\d*$/i, // Just "Check" without merchant
+      /^Fee period\s*[\/\-]\s*$/i, // Fee period artifacts
+      /^Recurring\s*$/i,          // Generic recurring
+      /^Online\s*$/i,             // Generic online
+      /^Transfer\s*x\s*$/i,       // Transfer artifacts
+      /^Payment\s*$/i,            // Generic payment
+      /^Deposit\s*$/i,            // Generic deposit
+      /^Withdrawal\s*$/i,         // Generic withdrawal
+      /^Transaction\s*$/i,        // Generic transaction
+      /^Purchase\s*$/i,           // Generic purchase
+      /^Debit\s*$/i,              // Generic debit
+      /^Credit\s*$/i              // Generic credit
     ];
 
     if (nonsensePatterns.some(pattern => pattern.test(transaction.merchant))) {
@@ -637,7 +718,7 @@ export class TransactionParser {
 
     // Check if amount is reasonable
     const amount = Math.abs(transaction.amount);
-    if (amount === 0 || amount > 100000) { // Increased limit for large transactions
+    if (amount === 0 || amount > 50000) { // Reduced limit for suspicious amounts
       return false;
     }
 

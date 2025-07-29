@@ -9,7 +9,8 @@ export class TransactionCategorizer {
       'account maintenance', 'bank', 'credit union', 'financial institution',
       'pennymac', 'quicken loans', 'rocket mortgage', 'lending', 'finance',
       'overdraft protection', 'account fee', 'monthly maintenance', 'service charge',
-      'wire fee', 'stop payment', 'returned item', 'nsf fee', 'insufficient funds'
+      'wire fee', 'stop payment', 'returned item', 'nsf fee', 'insufficient funds',
+      'stripe transfer', 'stripe payment', 'stripe deposit', 'stripe credit'
     ],
     ATM: [
       'atm withdrawal', 'atm check', 'cash advance', 'atm fee', 'atm deposit',
@@ -33,9 +34,7 @@ export class TransactionCategorizer {
     ],
     Food: [
       'starbucks', '7-eleven', '7 eleven', 'panera', 'panera bread', 'mcdonald', 
-      'burger', 'pizza', 'restaurant', 'cafe', 'coffee', 'food', 'grocery', 
-      'market', 'subway', 'chipotle', 'taco', 'wendy', 'kfc', 'domino',
-      'dining', 'eatery', 'bistro', 'grill', 'deli', 'bakery', 'bar',
+      'burger', 'pizza', 'restaurant', 'cafe', 'diner', 'bistro', 'grill', 'deli', 'bakery', 'bar',
       'kroger', 'safeway', 'publix', 'whole foods', 'trader joe', 'gas station',
       'eleven', 'la plaza bakery', 'fast food', 'drive thru', 'takeout',
       'delivery', 'food truck', 'catering', 'buffet', 'steakhouse', 'seafood',
@@ -65,7 +64,8 @@ export class TransactionCategorizer {
       'returned item', 'wire fee', 'stop payment', 'account fee', 'insufficient funds',
       'atm fee', 'foreign transaction fee', 'balance transfer fee', 'cash advance fee',
       'annual percentage rate', 'apr', 'interest charge', 'finance charge',
-      'minimum payment', 'late payment', 'returned check fee', 'overdraft protection fee'
+      'minimum payment', 'late payment', 'returned check fee', 'overdraft protection fee',
+      'fee period', 'period fee', 'account maintenance fee'
     ],
     Other: [
       'bill pay', 'payment', 'misc', 'miscellaneous', 'unknown', 'adjustment', 
@@ -74,7 +74,7 @@ export class TransactionCategorizer {
       'medical', 'healthcare', 'doctor', 'dentist', 'hospital', 'pharmacy',
       'transportation', 'uber', 'lyft', 'taxi', 'parking', 'toll', 'metro',
       'subway', 'bus', 'train', 'airline', 'hotel', 'lodging', 'vacation',
-      'travel', 'entertainment', 'movie', 'theater', 'concert', 'show',
+      'travel', 'entertainment', 'movie', 'theater', 'cinema', 'concert', 'show',
       'game', 'sport', 'fitness', 'gym', 'yoga', 'education', 'university',
       'college', 'school', 'tuition', 'textbook', 'course', 'class',
       'charity', 'donation', 'nonprofit', 'foundation', 'church', 'temple',
@@ -141,7 +141,9 @@ export class TransactionCategorizer {
         merchantLower.includes('processing fee') ||
         merchantLower.includes('wire fee') ||
         merchantLower.includes('stop payment') ||
-        merchantLower.includes('account fee')) {
+        merchantLower.includes('account fee') ||
+        merchantLower.includes('fee period') ||
+        merchantLower.includes('period fee')) {
       return 'Fees';
     }
     
@@ -160,7 +162,12 @@ export class TransactionCategorizer {
         merchantLower.includes('bank of america') ||
         merchantLower.includes('citibank') ||
         merchantLower.includes('credit union') ||
-        merchantLower.includes('financial institution')) {
+        merchantLower.includes('financial institution') ||
+        merchantLower.includes('stripe transfer') ||
+        merchantLower.includes('stripe payment') ||
+        merchantLower.includes('stripe deposit') ||
+        merchantLower.includes('stripe credit') ||
+        merchantLower.includes('pennymac')) {
       return 'Banking';
     }
     
