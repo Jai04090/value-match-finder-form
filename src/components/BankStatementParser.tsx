@@ -10,8 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ProcessingState, ParsedFileData, CategorizedTransaction } from '@/types/bankStatement';
 import { TextExtractor } from '@/services/textExtractor';
 import { PIIRedactor } from '@/services/piiRedactor';
-import { TransactionParser } from '@/services/transactionParser';
-import { TransactionCategorizer } from '@/services/transactionCategorizer';
+import { UniversalTransactionParser } from '@/services/universalTransactionParser';
 
 const BankStatementParser = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -88,16 +87,25 @@ const BankStatementParser = () => {
         message: 'Parsing transaction data...'
       });
 
-      const rawTransactions = TransactionParser.parseTransactions(redactedText);
-
-      // Step 4: Categorize transactions
+      // Step 3: Universal parsing and categorization
       setProcessingState({
-        step: 'categorizing',
-        progress: 80,
-        message: 'Categorizing transactions...'
+        step: 'parsing',
+        progress: 70,
+        message: 'Analyzing transactions with universal parser...'
       });
 
-      const categorizedTransactions = TransactionCategorizer.categorizeTransactions(rawTransactions);
+      const parsingResult = await UniversalTransactionParser.parseTransactions(redactedText, {
+        useMLFeatures: true,
+        minConfidenceThreshold: 0.3
+      });
+
+      setProcessingState({
+        step: 'categorizing',
+        progress: 90,
+        message: 'Finalizing categorization...'
+      });
+
+      const categorizedTransactions = parsingResult.transactions;
 
       // Complete
       setProcessingState({
@@ -114,7 +122,7 @@ const BankStatementParser = () => {
 
       toast({
         title: "Processing complete",
-        description: `Found ${categorizedTransactions.length} transactions`,
+        description: `Found ${categorizedTransactions.length} transactions from ${parsingResult.metadata.bankName} with ${(parsingResult.metadata.extractionConfidence * 100).toFixed(1)}% confidence`,
       });
 
     } catch (error) {
@@ -138,8 +146,15 @@ const BankStatementParser = () => {
     const dataToDownload = {
       summary: {
         totalTransactions: parsedData.transactions.length,
-        categories: TransactionCategorizer.getCategoryStats(parsedData.transactions),
-        processedAt: new Date().toISOString()
+        categories: parsedData.transactions.reduce((acc, t) => {
+          acc[t.category] = (acc[t.category] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>),
+        processedAt: new Date().toISOString(),
+        processingMetadata: {
+          parsingEngine: 'Universal Parser v2.0',
+          confidence: 'Available in processing logs'
+        }
       },
       transactions: parsedData.transactions
     };
@@ -176,7 +191,7 @@ const BankStatementParser = () => {
             Bank Statement Parser
           </CardTitle>
           <CardDescription>
-            Upload a PDF or CSV bank statement to extract, redact, and categorize transactions locally in your browser.
+            Upload a PDF or CSV bank statement from any major bank. Our universal parser automatically detects the format and extracts transactions with high accuracy.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -193,7 +208,7 @@ const BankStatementParser = () => {
                 <p className="text-sm text-muted-foreground">or click to browse files</p>
               </div>
               <p className="text-xs text-muted-foreground">
-                Supports PDF and CSV files • All processing happens locally
+                Supports any bank format • PDF and CSV files • Universal parsing engine • All processing happens locally
               </p>
               <input
                 type="file"
@@ -283,8 +298,11 @@ const BankStatementParser = () => {
             {/* Category Summary */}
             <div>
               <h3 className="font-medium mb-3">Category Summary</h3>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(TransactionCategorizer.getCategoryStats(parsedData.transactions)).map(([category, count]) => (
+            <div className="flex flex-wrap gap-2">
+                {Object.entries(parsedData.transactions.reduce((acc, t) => {
+                  acc[t.category] = (acc[t.category] || 0) + 1;
+                  return acc;
+                }, {} as Record<string, number>)).map(([category, count]) => (
                   <Badge key={category} variant="secondary" className={getCategoryColor(category)}>
                     {category}: {count}
                   </Badge>
