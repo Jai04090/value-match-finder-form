@@ -295,6 +295,11 @@ export class TransactionParser {
         if (match) {
           const [, dateStr, merchantStr, amountStr] = match;
           
+          // Add null checks to prevent undefined errors
+          if (!dateStr || !merchantStr || !amountStr) {
+            continue;
+          }
+          
           const date = this.normalizeDate(dateStr, currentYear);
           const merchant = this.cleanMerchantName(merchantStr);
           const amount = parseFloat(amountStr.replace(/[$,]/g, ''));
@@ -322,6 +327,11 @@ export class TransactionParser {
       const match = line.match(pattern);
       if (match) {
         const [, dateStr, merchantStr, amountStr] = match;
+        
+        // Add null checks to prevent undefined errors
+        if (!dateStr || !merchantStr || !amountStr) {
+          continue;
+        }
         
         const date = this.normalizeDate(dateStr, currentYear);
         const merchant = this.cleanMerchantName(merchantStr);
@@ -376,6 +386,11 @@ export class TransactionParser {
       let match;
       while ((match = pattern.exec(line)) !== null) {
         const [, dateOrPrefix, merchantStr, amountStr] = match;
+        
+        // Add null checks to prevent undefined errors
+        if (!dateOrPrefix || !merchantStr || !amountStr) {
+          continue;
+        }
         
         // Extract date from prefix if needed
         const dateMatch = dateOrPrefix.match(/(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{4})?)/);
@@ -570,6 +585,11 @@ export class TransactionParser {
   }
 
   private static normalizeDate(dateStr: string, currentYear: number = new Date().getFullYear()): string | null {
+    // Add null check to prevent errors
+    if (!dateStr || typeof dateStr !== 'string') {
+      return null;
+    }
+    
     // Handle MM/DD/YYYY format
     const fullDateMatch = dateStr.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
     if (fullDateMatch) {
