@@ -10,7 +10,9 @@ import { useToast } from '@/hooks/use-toast';
 import { ProcessingState, ParsedFileData, CategorizedTransaction } from '@/types/bankStatement';
 import { TextExtractor } from '@/services/textExtractor';
 import { PIIRedactor } from '@/services/piiRedactor';
-import { UniversalTransactionParser } from '@/services/universalTransactionParser';
+import { TransactionParser } from '@/services/transactionParser';
+import { TransactionCategorizer } from '@/services/transactionCategorizer';
+import { RawTransaction } from '@/types/bankStatement';
 
 const BankStatementParser = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -20,7 +22,31 @@ const BankStatementParser = () => {
     message: 'Ready to process your bank statement'
   });
   const [parsedData, setParsedData] = useState<ParsedFileData | null>(null);
+  const [testMode, setTestMode] = useState(false);
+  const [testResults, setTestResults] = useState<any>(null);
   const { toast } = useToast();
+
+  // Sample test data for validation
+  const sampleTestData = `Wells Fargo Bank Statement
+Account Number: ****1234
+Statement Period: 01/01/2024 - 01/31/2024
+
+Date Description Amount
+01/02/2024 Starbucks Coffee $4.50
+01/03/2024 Amazon.com Purchase $29.99
+01/05/2024 Shell Gas Station $45.67
+01/07/2024 Walmart Supercenter $123.45
+01/10/2024 Netflix Subscription $15.99
+01/12/2024 ATM Withdrawal $100.00
+01/15/2024 Check #1234 $500.00
+01/18/2024 Comcast Internet $89.99
+01/20/2024 Uber Ride $23.45
+01/25/2024 CVS Pharmacy $12.34
+01/28/2024 Direct Deposit $2500.00
+01/30/2024 Service Charge $12.00
+
+Total Deposits: $2500.00
+Total Withdrawals: $875.38`;
 
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -87,25 +113,16 @@ const BankStatementParser = () => {
         message: 'Parsing transaction data...'
       });
 
-      // Step 3: Universal parsing and categorization
-      setProcessingState({
-        step: 'parsing',
-        progress: 70,
-        message: 'Analyzing transactions with universal parser...'
-      });
+      const rawTransactions = TransactionParser.parseTransactions(redactedText);
 
-      const parsingResult = await UniversalTransactionParser.parseTransactions(redactedText, {
-        useMLFeatures: true,
-        minConfidenceThreshold: 0.3
-      });
-
+      // Step 4: Categorize transactions
       setProcessingState({
         step: 'categorizing',
-        progress: 90,
-        message: 'Finalizing categorization...'
+        progress: 80,
+        message: 'Categorizing transactions...'
       });
 
-      const categorizedTransactions = parsingResult.transactions;
+      const categorizedTransactions = TransactionCategorizer.categorizeTransactions(rawTransactions);
 
       // Complete
       setProcessingState({
@@ -122,7 +139,7 @@ const BankStatementParser = () => {
 
       toast({
         title: "Processing complete",
-        description: `Found ${categorizedTransactions.length} transactions from ${parsingResult.metadata.bankName}`,
+        description: `Found ${categorizedTransactions.length} transactions`,
       });
 
     } catch (error) {
@@ -135,6 +152,51 @@ const BankStatementParser = () => {
       toast({
         title: "Processing failed",
         description: error instanceof Error ? error.message : 'An unknown error occurred',
+        variant: "destructive"
+      });
+    }
+  };
+
+  const runTestMode = async () => {
+    setTestMode(true);
+    setProcessingState({
+      step: 'parsing',
+      progress: 50,
+      message: 'Running parsing test with sample data...'
+    });
+
+    try {
+      // Test the parsing with sample data
+      const testResult = TransactionParser.testParsing(sampleTestData);
+      const qualityAnalysis = TransactionParser.analyzeParsingQuality(testResult.transactions);
+      
+      setTestResults({
+        ...testResult,
+        qualityAnalysis,
+        sampleData: sampleTestData
+      });
+
+      setProcessingState({
+        step: 'complete',
+        progress: 100,
+        message: `Test completed: ${testResult.transactions.length} transactions parsed`
+      });
+
+      toast({
+        title: "Test completed",
+        description: `Parsed ${testResult.transactions.length} transactions with ${qualityAnalysis.quality} quality`,
+      });
+
+    } catch (error) {
+      setProcessingState({
+        step: 'error',
+        progress: 0,
+        message: error instanceof Error ? error.message : 'Test failed'
+      });
+
+      toast({
+        title: "Test failed",
+        description: error instanceof Error ? error.message : 'An error occurred during testing',
         variant: "destructive"
       });
     }
@@ -194,6 +256,23 @@ const BankStatementParser = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Test Mode Toggle */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-medium">Test Mode</h3>
+              <p className="text-sm text-muted-foreground">
+                Test the parsing logic with sample data to validate improvements
+              </p>
+            </div>
+            <Button
+              onClick={runTestMode}
+              variant="outline"
+              disabled={processingState.step !== 'idle'}
+            >
+              Run Test
+            </Button>
+          </div>
+
           {/* File Upload */}
           <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center space-y-4 hover:border-muted-foreground/50 transition-colors relative">
             <div
@@ -283,6 +362,118 @@ const BankStatementParser = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Test Results */}
+      {testMode && testResults && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Test Results</CardTitle>
+            <CardDescription>
+              Parsing quality analysis and validation results
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Quality Analysis */}
+            <div>
+              <h3 className="font-medium mb-3">Quality Analysis</h3>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Badge variant={testResults.qualityAnalysis.quality === 'excellent' ? 'default' : 
+                                 testResults.qualityAnalysis.quality === 'good' ? 'secondary' :
+                                 testResults.qualityAnalysis.quality === 'fair' ? 'outline' : 'destructive'}>
+                    {testResults.qualityAnalysis.quality.toUpperCase()}
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">
+                    Overall parsing quality
+                  </span>
+                </div>
+                
+                {testResults.qualityAnalysis.issues.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium text-red-600 mb-2">Issues Found:</h4>
+                    <ul className="text-sm text-red-600 space-y-1">
+                      {testResults.qualityAnalysis.issues.map((issue: string, index: number) => (
+                        <li key={index}>• {issue}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {testResults.qualityAnalysis.suggestions.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium text-blue-600 mb-2">Suggestions:</h4>
+                    <ul className="text-sm text-blue-600 space-y-1">
+                      {testResults.qualityAnalysis.suggestions.map((suggestion: string, index: number) => (
+                        <li key={index}>• {suggestion}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Statistics */}
+            <div>
+              <h3 className="font-medium mb-3">Parsing Statistics</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{testResults.stats.totalLines}</div>
+                  <div className="text-sm text-muted-foreground">Total Lines</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">{testResults.stats.parsedLines}</div>
+                  <div className="text-sm text-muted-foreground">Parsed Lines</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-yellow-600">{testResults.stats.skippedLines}</div>
+                  <div className="text-sm text-muted-foreground">Skipped Lines</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-red-600">{testResults.stats.errorLines}</div>
+                  <div className="text-sm text-muted-foreground">Error Lines</div>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Parsed Transactions */}
+            <div>
+              <h3 className="font-medium mb-3">Parsed Transactions ({testResults.transactions.length})</h3>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {testResults.transactions.map((transaction: RawTransaction, index: number) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div className="flex-1">
+                      <div className="font-medium">{transaction.merchant}</div>
+                      <div className="text-sm text-muted-foreground">{transaction.date}</div>
+                    </div>
+                    <div className="font-medium">${transaction.amount.toFixed(2)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Errors */}
+            {testResults.errors.length > 0 && (
+              <>
+                <Separator />
+                <div>
+                  <h3 className="font-medium mb-3 text-red-600">Parsing Errors ({testResults.errors.length})</h3>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {testResults.errors.map((error: string, index: number) => (
+                      <div key={index} className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <div className="text-sm text-red-800">{error}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Results */}
       {parsedData && (
