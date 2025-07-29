@@ -122,7 +122,7 @@ const BankStatementParser = () => {
 
       toast({
         title: "Processing complete",
-        description: `Found ${categorizedTransactions.length} transactions from ${parsingResult.metadata.bankName} with ${(parsingResult.metadata.extractionConfidence * 100).toFixed(1)}% confidence`,
+        description: `Found ${categorizedTransactions.length} transactions from ${parsingResult.metadata.bankName}`,
       });
 
     } catch (error) {
@@ -152,8 +152,7 @@ const BankStatementParser = () => {
         }, {} as Record<string, number>),
         processedAt: new Date().toISOString(),
         processingMetadata: {
-          parsingEngine: 'Universal Parser v2.0',
-          confidence: 'Available in processing logs'
+          parsingEngine: 'Universal Parser v2.0'
         }
       },
       transactions: parsedData.transactions
