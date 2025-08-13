@@ -217,9 +217,13 @@ const BankStatementParser = () => {
       ));
       setTasks(prev => [...prev, ...generatedTasks]);
 
+      // Generate ICS file for the tasks
+      const icsData = ICSCalendarService.generateICSData(generatedTasks);
+      ICSCalendarService.downloadICSFile(icsData, `financial-tasks-${suggestionId.slice(0, 8)}.ics`);
+
       toast({
-        title: "Suggestion accepted",
-        description: `Created ${generatedTasks.length} action items to help you save money`,
+        title: "Suggestion selected",
+        description: `Created ${generatedTasks.length} action items and downloaded calendar file`,
       });
 
     } catch (error) {
@@ -924,13 +928,13 @@ Or any format from your bank statement..."
                         onClick={() => acceptSuggestion(suggestion.id)}
                         className="bg-success hover:bg-success/90"
                       >
-                        Accept
+                        Select
                       </Button>
                     )}
                     {suggestion.status === 'accepted' && (
                       <Badge variant="secondary" className="bg-success/10 text-success">
                         <CheckCircle className="h-3 w-3 mr-1" />
-                        Accepted
+                        Selected
                       </Badge>
                     )}
                   </div>
