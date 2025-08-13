@@ -155,6 +155,9 @@ const BankStatementParser = () => {
         message: `Successfully analyzed ${parseResult.transactions.length} transactions with personalized suggestions`
       });
 
+      // Reset manual input for next submission
+      setManualInput('');
+
       toast({
         title: "Analysis complete",
         description: `Processed ${parseResult.transactions.length} transactions with spending insights`,
