@@ -180,12 +180,16 @@ const BankStatementParser = () => {
 
   const acceptSuggestion = async (suggestionId: string) => {
     console.log('acceptSuggestion called with suggestionId:', suggestionId);
+    console.log('Current user:', user);
+    console.log('User ID:', user?.id);
     
     const suggestion = suggestions.find(s => s.id === suggestionId);
     if (!suggestion || !user) {
       console.log('Missing suggestion or user:', { suggestion, user });
       return;
     }
+
+    console.log('Found suggestion:', suggestion);
 
     try {
       // Update suggestion status in database
@@ -218,12 +222,23 @@ const BankStatementParser = () => {
         estimated_savings: t.estimatedSavings
       }));
 
+      console.log('Tasks to save:', tasksToSave);
+      console.log('Tasks user_id vs current user:', { 
+        taskUserId: tasksToSave[0]?.user_id, 
+        currentUserId: user.id,
+        match: tasksToSave[0]?.user_id === user.id 
+      });
+
       const { data: savedTasks, error: tasksError } = await supabase
         .from('financial_tasks')
         .insert(tasksToSave)
         .select();
 
-      if (tasksError) throw tasksError;
+      console.log('Supabase insert result:', { savedTasks, tasksError });
+      if (tasksError) {
+        console.error('Tasks insert error details:', tasksError);
+        throw tasksError;
+      }
 
       // Update local state
       setSuggestions(prev => prev.map(s => 
