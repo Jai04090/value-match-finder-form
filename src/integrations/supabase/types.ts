@@ -65,6 +65,65 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_tasks: {
+        Row: {
+          actual_savings: number | null
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          estimated_savings: number | null
+          id: string
+          recurrence_pattern: string | null
+          status: string
+          suggestion_id: string | null
+          task_type: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actual_savings?: number | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          estimated_savings?: number | null
+          id?: string
+          recurrence_pattern?: string | null
+          status?: string
+          suggestion_id?: string | null
+          task_type?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actual_savings?: number | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          estimated_savings?: number | null
+          id?: string
+          recurrence_pattern?: string | null
+          status?: string
+          suggestion_id?: string | null
+          task_type?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_tasks_suggestion"
+            columns: ["suggestion_id"]
+            isOneToOne: false
+            referencedRelation: "spending_suggestions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       form_submissions: {
         Row: {
           created_at: string
@@ -393,6 +452,154 @@ export type Database = {
           zip_code?: string | null
         }
         Relationships: []
+      }
+      spending_analysis: {
+        Row: {
+          analysis_date: string
+          created_at: string
+          frequency_patterns: Json
+          id: string
+          insights: Json
+          monthly_averages: Json
+          spending_by_category: Json
+          total_spending: number
+          total_transactions: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_date?: string
+          created_at?: string
+          frequency_patterns?: Json
+          id?: string
+          insights?: Json
+          monthly_averages?: Json
+          spending_by_category?: Json
+          total_spending?: number
+          total_transactions?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_date?: string
+          created_at?: string
+          frequency_patterns?: Json
+          id?: string
+          insights?: Json
+          monthly_averages?: Json
+          spending_by_category?: Json
+          total_spending?: number
+          total_transactions?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      spending_suggestions: {
+        Row: {
+          analysis_id: string
+          category: string
+          created_at: string
+          current_frequency: string | null
+          description: string
+          id: string
+          potential_savings: number | null
+          priority_score: number
+          status: string
+          suggested_frequency: string | null
+          suggestion_type: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_id: string
+          category: string
+          created_at?: string
+          current_frequency?: string | null
+          description: string
+          id?: string
+          potential_savings?: number | null
+          priority_score?: number
+          status?: string
+          suggested_frequency?: string | null
+          suggestion_type: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_id?: string
+          category?: string
+          created_at?: string
+          current_frequency?: string | null
+          description?: string
+          id?: string
+          potential_savings?: number | null
+          priority_score?: number
+          status?: string
+          suggested_frequency?: string | null
+          suggestion_type?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_suggestions_analysis"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "spending_analysis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_calendar_events: {
+        Row: {
+          created_at: string
+          end_date: string | null
+          event_description: string | null
+          event_title: string
+          ics_data: string | null
+          id: string
+          is_recurring: boolean
+          start_date: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_date?: string | null
+          event_description?: string | null
+          event_title: string
+          ics_data?: string | null
+          id?: string
+          is_recurring?: boolean
+          start_date: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string | null
+          event_description?: string | null
+          event_title?: string
+          ics_data?: string | null
+          id?: string
+          is_recurring?: boolean
+          start_date?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_events_task"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "financial_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       template_publishing_logs: {
         Row: {
