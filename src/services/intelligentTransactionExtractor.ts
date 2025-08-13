@@ -15,21 +15,22 @@ export interface ExtractionResult {
 }
 
 export class IntelligentTransactionExtractor {
-  private static readonly MIN_CONFIDENCE_THRESHOLD = 0.4;
-  private static readonly MIN_MERCHANT_LENGTH = 2;
-  private static readonly MAX_AMOUNT = 1000000; // $1M max for sanity check
+  // MUCH MORE LENIENT THRESHOLDS
+  private static readonly MIN_CONFIDENCE_THRESHOLD = 0.2; // Lowered from 0.4
+  private static readonly MIN_MERCHANT_LENGTH = 1; // Lowered from 2
+  private static readonly MAX_AMOUNT = 10000000; // Increased from 1M to 10M
 
   static extractTransactions(
     text: string, 
     bankProfile: BankProfile
   ): ExtractionResult {
-    console.log(`🔍 Starting intelligent extraction for ${bankProfile.name}`);
+    console.log(`🔍 Starting LENIENT extraction for ${bankProfile.name}`);
     
     const config = UniversalPatternEngine.generatePatternConfig(bankProfile);
     const preprocessedText = this.preprocessText(text, config);
     const lines = preprocessedText.split('\n').filter(line => line.trim());
     
-    console.log(`📊 Processing ${lines.length} lines`);
+    console.log(`📊 Processing ${lines.length} lines with LENIENT settings`);
     
     const transactions: RawTransaction[] = [];
     const confidenceScores: number[] = [];
@@ -44,7 +45,8 @@ export class IntelligentTransactionExtractor {
       const line = lines[i].trim();
       processedLines++;
       
-      if (UniversalPatternEngine.shouldSkipLine(line, config)) {
+      // MUCH MORE LENIENT LINE FILTERING
+      if (this.shouldDefinitelySkipLine(line)) {
         skippedLines++;
         continue;
       }
@@ -56,14 +58,15 @@ export class IntelligentTransactionExtractor {
         continue;
       }
       
-      // Try multiple extraction strategies
+      // Try multiple extraction strategies with LOWERED THRESHOLDS
       const extractionResults = [
         this.extractWithPatterns(line, config, currentYear),
         this.extractWithContextualParsing(line, lines, i, config, currentYear),
-        this.extractWithFuzzyMatching(line, config, currentYear)
+        this.extractWithFuzzyMatching(line, config, currentYear),
+        this.extractWithVeryFuzzyMatching(line, config, currentYear) // NEW: Very fuzzy matching
       ];
       
-      // Take the result with highest confidence
+      // Take the result with highest confidence, but accept lower confidence
       const bestResult = extractionResults
         .filter(result => result !== null)
         .sort((a, b) => b!.confidence - a!.confidence)[0];
@@ -74,7 +77,7 @@ export class IntelligentTransactionExtractor {
           transactions.push(transaction);
           confidenceScores.push(bestResult.confidence);
           successfulExtractions++;
-          console.log(`✅ Extracted: ${transaction.date} | ${transaction.merchant} | $${transaction.amount}`);
+          console.log(`✅ Extracted (lenient): ${transaction.date} | ${transaction.merchant} | $${transaction.amount} (confidence: ${bestResult.confidence.toFixed(2)})`);
         }
       }
     }
@@ -85,7 +88,7 @@ export class IntelligentTransactionExtractor {
       ? confidenceScores.reduce((sum, score) => sum + score, 0) / confidenceScores.length 
       : 0;
     
-    console.log(`📊 Extraction complete: ${finalTransactions.length} transactions (${successfulExtractions} raw extractions)`);
+    console.log(`📊 LENIENT extraction complete: ${finalTransactions.length} transactions (${successfulExtractions} raw extractions)`);
     
     return {
       transactions: finalTransactions,
@@ -97,6 +100,78 @@ export class IntelligentTransactionExtractor {
         successfulExtractions,
         averageConfidence
       }
+    };
+  }
+
+  // NEW: Very fuzzy matching for edge cases
+  private static extractWithVeryFuzzyMatching(
+    line: string,
+    config: PatternConfig,
+    currentYear: number
+  ): { transaction: RawTransaction; confidence: number } | null {
+    let date: string | null = null;
+    let merchant: string | null = null;
+    let amount: string | null = null;
+    let confidence = 0;
+    
+    // SUPER FUZZY date extraction - any number pattern that could be a date
+    const dateMatches = line.match(/\d{1,2}[\/\-\.]\d{1,2}(?:[\/\-\.]\d{2,4})?/g);
+    if (dateMatches && dateMatches.length > 0) {
+      date = dateMatches[0];
+      confidence += 0.15; // Lower confidence for fuzzy dates
+    }
+    
+    // SUPER FUZZY amount extraction - any number with decimal or dollar sign
+    const amountMatches = line.match(/[\$]?\d{1,8}(?:,\d{3})*(?:\.\d{0,2})?/g);
+    if (amountMatches && amountMatches.length > 0) {
+      // Take the most likely amount (often the last one, or the one with decimals)
+      const likelyAmounts = amountMatches.filter(amt => amt.includes('.') || amt.includes('$'));
+      amount = likelyAmounts.length > 0 ? likelyAmounts[likelyAmounts.length - 1] : amountMatches[amountMatches.length - 1];
+      confidence += 0.2;
+    }
+    
+    // SUPER FUZZY merchant extraction - any text that's not clearly a date or amount
+    if (date && amount) {
+      const dateIndex = line.indexOf(date);
+      const amountIndex = line.lastIndexOf(amount);
+      
+      if (dateIndex < amountIndex) {
+        const merchantText = line.substring(dateIndex + date.length, amountIndex).trim();
+        if (merchantText.length >= 1) { // Even single characters
+          merchant = merchantText;
+          confidence += 0.15;
+        }
+      }
+    }
+    
+    // If we still don't have merchant, try to extract any text that looks like a name
+    if (!merchant) {
+      const textMatches = line.match(/[A-Za-z][A-Za-z\s&\-\.]{1,20}/g);
+      if (textMatches && textMatches.length > 0) {
+        merchant = textMatches[0];
+        confidence += 0.1;
+      }
+    }
+    
+    if (!date || !merchant || !amount || confidence < this.MIN_CONFIDENCE_THRESHOLD) {
+      return null;
+    }
+    
+    const normalizedDate = this.normalizeDate(date, currentYear);
+    const cleanMerchant = this.cleanMerchantName(merchant);
+    const parsedAmount = this.parseAmount(amount);
+    
+    if (!normalizedDate || !cleanMerchant || parsedAmount === null) {
+      return null;
+    }
+    
+    return {
+      transaction: {
+        date: normalizedDate,
+        merchant: cleanMerchant,
+        amount: parsedAmount
+      },
+      confidence: confidence * 0.7 // Reduce confidence for very fuzzy matching
     };
   }
 
@@ -138,7 +213,7 @@ export class IntelligentTransactionExtractor {
   ): { transaction: RawTransaction; confidence: number } | null {
     // Look at surrounding lines for context
     const contextLines = [];
-    for (let i = Math.max(0, lineIndex - 2); i <= Math.min(allLines.length - 1, lineIndex + 2); i++) {
+    for (let i = Math.max(0, lineIndex - 3); i <= Math.min(allLines.length - 1, lineIndex + 3); i++) {
       if (i !== lineIndex) {
         contextLines.push(allLines[i]);
       }
@@ -148,13 +223,13 @@ export class IntelligentTransactionExtractor {
     const components = UniversalPatternEngine.extractComponents(line, config);
     let confidence = components.confidence;
     
-    // If we're missing components, try to find them in context
+    // If we're missing components, try to find them in context with LOWER PENALTIES
     if (!components.date && contextLines.some(l => /\d{1,2}\/\d{1,2}/.test(l))) {
-      confidence -= 0.2; // Penalize for missing date
+      confidence -= 0.1; // Reduced penalty from 0.2
     }
     
     if (!components.amount && contextLines.some(l => /\$?\d+\.?\d*/.test(l))) {
-      confidence -= 0.3; // Penalize for missing amount
+      confidence -= 0.15; // Reduced penalty from 0.3
     }
     
     if (confidence < this.MIN_CONFIDENCE_THRESHOLD) {
@@ -179,15 +254,15 @@ export class IntelligentTransactionExtractor {
     const dateMatch = line.match(/\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?/);
     if (dateMatch) {
       date = dateMatch[0];
-      confidence += 0.25;
+      confidence += 0.2; // Reduced from 0.25
     }
     
     // Fuzzy amount extraction (look for any number with 2 decimals or dollar sign)
-    const amountMatches = line.match(/[\$]?\d{1,6}(?:,\d{3})*(?:\.\d{2})?/g);
+    const amountMatches = line.match(/[\$]?\d{1,8}(?:,\d{3})*(?:\.\d{0,2})?/g);
     if (amountMatches && amountMatches.length > 0) {
       // Take the most likely amount (often the last one)
       amount = amountMatches[amountMatches.length - 1];
-      confidence += 0.3;
+      confidence += 0.25; // Reduced from 0.3
     }
     
     // Fuzzy merchant extraction (text between date and amount)
@@ -197,9 +272,9 @@ export class IntelligentTransactionExtractor {
       
       if (dateIndex < amountIndex) {
         const merchantText = line.substring(dateIndex + date.length, amountIndex).trim();
-        if (merchantText.length >= this.MIN_MERCHANT_LENGTH) {
+        if (merchantText.length >= 1) { // Reduced from 2
           merchant = merchantText;
-          confidence += 0.25;
+          confidence += 0.2; // Reduced from 0.25
         }
       }
     }
@@ -222,12 +297,28 @@ export class IntelligentTransactionExtractor {
         merchant: cleanMerchant,
         amount: parsedAmount
       },
-      confidence: confidence * 0.8 // Reduce confidence for fuzzy matching
+      confidence: confidence * 0.8 // Reduced penalty from 0.8
     };
   }
 
+  // NEW: Much more lenient line filtering
+  private static shouldDefinitelySkipLine(line: string): boolean {
+    const definitelySkipPatterns = [
+      /^\s*$/, // Empty lines
+      /^Date\s+Description\s+Amount\s*$/i, // Header only
+      /^Total\s*:/i, // Total lines
+      /^Balance\s*:/i, // Balance lines
+      /^Page\s+\d+\s+of\s+\d+$/i, // Page numbers
+      /^\d+\s*$/, // Just numbers
+      /^Statement\s+Period/i, // Statement headers
+      /^Account\s+Number/i, // Account info
+    ];
+    
+    return definitelySkipPatterns.some(pattern => pattern.test(line));
+  }
+
   private static preprocessText(text: string, config: PatternConfig): string {
-    console.log('🔧 Preprocessing text for intelligent extraction...');
+    console.log('🔧 Preprocessing text for LENIENT extraction...');
     
     const lines = text.split('\n');
     const filteredLines: string[] = [];
@@ -235,27 +326,28 @@ export class IntelligentTransactionExtractor {
     for (const line of lines) {
       const trimmed = line.trim();
       
-      if (!trimmed || UniversalPatternEngine.shouldSkipLine(trimmed, config)) {
+      if (!trimmed || this.shouldDefinitelySkipLine(trimmed)) {
         continue;
       }
       
-      // Keep lines that have transaction indicators
-      const hasDate = /\d{1,2}[\/\-]\d{1,2}/.test(trimmed);
-      const hasAmount = /[\$]?\d+(?:\.\d{2})?/.test(trimmed);
-      const hasText = /[a-zA-Z]{3,}/.test(trimmed);
+      // MUCH MORE LENIENT: Keep lines that have ANY potential transaction indicators
+      const hasDate = /\d{1,2}[\/\-\.]\d{1,2}/.test(trimmed);
+      const hasAmount = /[\$]?\d+(?:\.\d{0,2})?/.test(trimmed);
+      const hasText = /[a-zA-Z]{1,}/.test(trimmed); // Reduced from 3 to 1
+      const hasNumbers = /\d{3,}/.test(trimmed); // Any sequence of 3+ numbers
       
-      if (hasDate || hasAmount || hasText) {
+      if (hasDate || hasAmount || hasText || hasNumbers) {
         filteredLines.push(trimmed);
       }
     }
     
-    console.log(`🔧 Filtered from ${lines.length} to ${filteredLines.length} lines`);
+    console.log(`🔧 LENIENT filtering: kept ${filteredLines.length} of ${lines.length} lines`);
     return filteredLines.join('\n');
   }
 
   private static detectStatementYear(text: string): number {
-    // Look for year patterns in the first 1000 characters
-    const yearMatches = text.substring(0, 1000).match(/20\d{2}/g);
+    // Look for year patterns in the first 2000 characters (increased from 1000)
+    const yearMatches = text.substring(0, 2000).match(/20\d{2}/g);
     if (yearMatches) {
       return parseInt(yearMatches[yearMatches.length - 1]);
     }
@@ -267,13 +359,15 @@ export class IntelligentTransactionExtractor {
   private static normalizeDate(dateStr: string, currentYear: number): string | null {
     if (!dateStr) return null;
     
-    // Handle various date formats
+    // Handle various date formats with MORE LENIENT parsing
     const patterns = [
       { regex: /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/, format: 'MM/DD/YYYY' },
       { regex: /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/, format: 'MM/DD/YY' },
       { regex: /^(\d{1,2})\/(\d{1,2})$/, format: 'MM/DD' },
       { regex: /^(\d{4})-(\d{1,2})-(\d{1,2})$/, format: 'YYYY-MM-DD' },
-      { regex: /^(\d{1,2})-(\d{1,2})-(\d{4})$/, format: 'MM-DD-YYYY' }
+      { regex: /^(\d{1,2})-(\d{1,2})-(\d{4})$/, format: 'MM-DD-YYYY' },
+      { regex: /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/, format: 'MM.DD.YYYY' }, // NEW: dot separators
+      { regex: /^(\d{1,2})\.(\d{1,2})\.(\d{2})$/, format: 'MM.DD.YY' }, // NEW: dot separators
     ];
     
     for (const pattern of patterns) {
@@ -284,9 +378,11 @@ export class IntelligentTransactionExtractor {
         switch (pattern.format) {
           case 'MM/DD/YYYY':
           case 'MM-DD-YYYY':
+          case 'MM.DD.YYYY':
             [, month, day, year] = match.map(Number);
             break;
           case 'MM/DD/YY':
+          case 'MM.DD.YY':
             [, month, day] = match.map(Number);
             year = 2000 + Number(match[3]);
             break;
@@ -301,7 +397,7 @@ export class IntelligentTransactionExtractor {
             continue;
         }
         
-        // Validate date components
+        // MORE LENIENT date validation
         if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
           return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
         }
@@ -314,7 +410,7 @@ export class IntelligentTransactionExtractor {
   private static parseAmount(amountStr: string): number | null {
     if (!amountStr) return null;
     
-    // Clean the amount string
+    // Clean the amount string - MORE LENIENT
     const cleaned = amountStr.replace(/[\$,\s]/g, '');
     const amount = parseFloat(cleaned);
     
@@ -330,7 +426,7 @@ export class IntelligentTransactionExtractor {
     
     let cleaned = merchant.trim();
     
-    // Remove common prefixes and artifacts
+    // MORE LENIENT cleaning patterns
     const cleaningPatterns = [
       /^(Purchase authorized on|Withdrawal authorized on|Transaction on)\s*/i,
       /^ATM\s+(Withdrawal|Deposit)\s*/i,
@@ -349,7 +445,7 @@ export class IntelligentTransactionExtractor {
   }
 
   private static validateAndCleanTransaction(transaction: RawTransaction): RawTransaction | null {
-    // Validate transaction components
+    // MUCH MORE LENIENT validation
     if (!transaction.date || !transaction.merchant || transaction.amount === null || transaction.amount === undefined) {
       return null;
     }
