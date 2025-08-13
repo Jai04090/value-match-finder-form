@@ -1,6 +1,6 @@
 import { RawTransaction, CategorizedTransaction } from '@/types/bankStatement';
 import { BankDetector } from './bankDetector';
-import { IntelligentTransactionExtractor } from './intelligentTransactionExtractor';
+import { EnhancedTransactionParser } from './enhancedTransactionParser';
 import { DynamicCategorizer } from './dynamicCategorizer';
 
 export interface UniversalParsingResult {
@@ -13,6 +13,11 @@ export interface UniversalParsingResult {
       totalLines: number;
       processedLines: number;
       successfulExtractions: number;
+      detectedLocale: string;
+      detectedFormat: string;
+      multiLineTransactions: number;
+      csvTransactions: number;
+      tabularTransactions: number;
     };
     categoryDistribution: Record<string, number>;
   };
@@ -27,7 +32,7 @@ export class UniversalTransactionParser {
       minConfidenceThreshold?: number;
     } = {}
   ): Promise<UniversalParsingResult> {
-    console.log('🚀 Starting universal transaction parsing...');
+    console.log('🚀 Starting enhanced universal transaction parsing...');
     
     const {
       useMLFeatures = true,
@@ -41,21 +46,16 @@ export class UniversalTransactionParser {
       const bankProfile = BankDetector.detectBank(text);
       console.log(`✅ Detected bank: ${bankProfile.name}`);
       
-      // Step 2: Intelligent transaction extraction
-      console.log('🔍 Step 2: Transaction Extraction');
-      const extractionResult = IntelligentTransactionExtractor.extractTransactions(text, bankProfile);
-      console.log(`✅ Extracted ${extractionResult.transactions.length} transactions with ${(extractionResult.confidence * 100).toFixed(1)}% confidence`);
-      
-      // Filter by confidence threshold
-      const qualityTransactions = extractionResult.transactions.filter((_, index) => {
-        // Since we don't have individual confidence scores, use overall confidence
-        return extractionResult.confidence >= minConfidenceThreshold;
-      });
+      // Step 2: Enhanced transaction extraction
+      console.log('🔍 Step 2: Enhanced Transaction Extraction');
+      const extractionResult = EnhancedTransactionParser.parseTransactions(text);
+      console.log(`✅ Extracted ${extractionResult.transactions.length} transactions`);
+      console.log(`📊 Processing stats:`, extractionResult.metadata);
       
       // Step 3: Dynamic categorization
       console.log('🏷️ Step 3: Transaction Categorization');
       const categorizedTransactions = DynamicCategorizer.categorizeTransactions(
-        qualityTransactions,
+        extractionResult.transactions,
         customKeywordMap,
         useMLFeatures
       );
@@ -68,30 +68,36 @@ export class UniversalTransactionParser {
         transactions: categorizedTransactions,
         metadata: {
           bankName: bankProfile.name,
-          extractionConfidence: extractionResult.confidence,
+          extractionConfidence: Math.min(0.95, extractionResult.metadata.successfulExtractions / Math.max(1, extractionResult.metadata.processedLines)),
           totalTransactions: categorizedTransactions.length,
           processingStats: {
             totalLines: extractionResult.metadata.totalLines,
             processedLines: extractionResult.metadata.processedLines,
-            successfulExtractions: extractionResult.metadata.successfulExtractions
+            successfulExtractions: extractionResult.metadata.successfulExtractions,
+            detectedLocale: extractionResult.metadata.detectedLocale,
+            detectedFormat: extractionResult.metadata.detectedFormat,
+            multiLineTransactions: extractionResult.metadata.multiLineTransactions,
+            csvTransactions: extractionResult.metadata.csvTransactions,
+            tabularTransactions: extractionResult.metadata.tabularTransactions
           },
           categoryDistribution
         }
       };
       
-      console.log('🎉 Universal parsing complete!');
-      console.log('📊 Results:', {
+      console.log('🎉 Enhanced universal parsing complete!');
+      console.log('📊 Final Results:', {
         bank: bankProfile.name,
         transactions: categorizedTransactions.length,
-        confidence: `${(extractionResult.confidence * 100).toFixed(1)}%`,
+        locale: extractionResult.metadata.detectedLocale,
+        format: extractionResult.metadata.detectedFormat,
         categories: Object.keys(categoryDistribution).filter(cat => categoryDistribution[cat] > 0).length
       });
       
       return result;
       
     } catch (error) {
-      console.error('❌ Universal parsing failed:', error);
-      throw new Error(`Universal transaction parsing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('❌ Enhanced universal parsing failed:', error);
+      throw new Error(`Enhanced universal transaction parsing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -150,22 +156,28 @@ export class UniversalTransactionParser {
       .join(', ');
     
     return `
-📊 UNIVERSAL PARSER REPORT
-========================
+📊 ENHANCED UNIVERSAL PARSER REPORT
+====================================
 Bank: ${metadata.bankName}
 Total Transactions: ${metadata.totalTransactions}
-Extraction Confidence: ${(metadata.extractionConfidence * 100).toFixed(1)}%
-Success Rate: ${successRate}%
+Detected Locale: ${metadata.processingStats.detectedLocale}
+Detected Format: ${metadata.processingStats.detectedFormat}
 
 📈 Processing Stats:
 - Lines Processed: ${metadata.processingStats.processedLines}
 - Successful Extractions: ${metadata.processingStats.successfulExtractions}
+- Multi-line Transactions: ${metadata.processingStats.multiLineTransactions}
+- CSV Transactions: ${metadata.processingStats.csvTransactions}
+- Tabular Transactions: ${metadata.processingStats.tabularTransactions}
+- Success Rate: ${successRate}%
+
+🏷️ Categorization:
 - Top Categories: ${topCategories}
+- Category Coverage: ${Object.keys(metadata.categoryDistribution).filter(cat => metadata.categoryDistribution[cat] > 0).length}/8 categories
 
 🎯 Quality Metrics:
 - Extraction Quality: ${metadata.extractionConfidence >= 0.8 ? 'Excellent' : metadata.extractionConfidence >= 0.6 ? 'Good' : 'Fair'}
 - Data Completeness: ${successRate}%
-- Category Coverage: ${Object.keys(metadata.categoryDistribution).filter(cat => metadata.categoryDistribution[cat] > 0).length}/8 categories
     `;
   }
 }
