@@ -114,15 +114,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "fk_tasks_suggestion"
-            columns: ["suggestion_id"]
-            isOneToOne: false
-            referencedRelation: "spending_suggestions"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       form_submissions: {
         Row: {
