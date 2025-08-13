@@ -179,8 +179,13 @@ const BankStatementParser = () => {
   };
 
   const acceptSuggestion = async (suggestionId: string) => {
+    console.log('acceptSuggestion called with suggestionId:', suggestionId);
+    
     const suggestion = suggestions.find(s => s.id === suggestionId);
-    if (!suggestion || !user) return;
+    if (!suggestion || !user) {
+      console.log('Missing suggestion or user:', { suggestion, user });
+      return;
+    }
 
     try {
       // Update suggestion status in database
@@ -192,7 +197,13 @@ const BankStatementParser = () => {
       if (updateError) throw updateError;
 
       // Generate tasks from suggestion
+      console.log('Generating tasks from suggestion:', suggestion);
       const generatedTasks = TaskGenerator.generateTasksFromSuggestion(suggestion);
+      console.log('Generated tasks:', generatedTasks);
+      
+      if (!generatedTasks || generatedTasks.length === 0) {
+        throw new Error('No tasks were generated from the suggestion');
+      }
       
       // Save tasks to database
       const tasksToSave = generatedTasks.map(t => ({
@@ -221,8 +232,24 @@ const BankStatementParser = () => {
       setTasks(prev => [...prev, ...generatedTasks]);
 
       // Generate ICS file for the tasks
-      const icsData = ICSCalendarService.generateICSData(generatedTasks);
-      ICSCalendarService.downloadICSFile(icsData, `financial-tasks-${suggestionId.slice(0, 8)}.ics`);
+      console.log('Generating ICS data for tasks:', generatedTasks);
+      try {
+        const icsData = ICSCalendarService.generateICSData(generatedTasks);
+        console.log('Generated ICS data length:', icsData.length);
+        
+        const filename = `financial-tasks-${suggestionId.slice(0, 8)}.ics`;
+        console.log('Downloading file:', filename);
+        ICSCalendarService.downloadICSFile(icsData, filename);
+      } catch (icsError) {
+        console.error('Error generating ICS file:', icsError);
+        // Don't fail the whole operation if ICS generation fails
+        toast({
+          title: "Tasks created",
+          description: `Created ${generatedTasks.length} action items. Calendar file generation failed.`,
+          variant: "destructive"
+        });
+        return;
+      }
 
       toast({
         title: "Suggestion selected",
@@ -230,9 +257,10 @@ const BankStatementParser = () => {
       });
 
     } catch (error) {
+      console.error('Error in acceptSuggestion:', error);
       toast({
         title: "Error accepting suggestion",
-        description: "Failed to create action items. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to create action items. Please try again.",
         variant: "destructive"
       });
     }

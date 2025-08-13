@@ -2,7 +2,16 @@ import { FinancialTask, TaskCalendarEvent } from '@/types/spendingAnalysis';
 
 export class ICSCalendarService {
   static generateICSData(tasks: FinancialTask[]): string {
+    console.log('ICSCalendarService.generateICSData called with tasks:', tasks);
+    
+    if (!tasks || tasks.length === 0) {
+      console.warn('No tasks provided to generateICSData');
+      return '';
+    }
+    
     const calendarEvents = tasks.map(task => this.taskToCalendarEvent(task));
+    console.log('Generated calendar events:', calendarEvents);
+    
     return this.generateICSFile(calendarEvents);
   }
 
@@ -16,7 +25,7 @@ export class ICSCalendarService {
     const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // 1 hour duration
 
     return {
-      id: crypto.randomUUID(),
+      id: crypto?.randomUUID?.() || `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       userId: task.userId,
       taskId: task.id,
       eventTitle: task.title,
