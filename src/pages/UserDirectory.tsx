@@ -80,13 +80,23 @@ const UserDirectory: React.FC = () => {
         // Merge the data
         const usersWithPreferences = userProfiles?.map(profile => {
           const submission = formSubmissions?.find(sub => sub.email === profile.email);
+          
+          // Check if user is a student or alumni based on their response
+          const studentOrAlumniText = submission?.student_or_alumni?.toLowerCase().trim() || '';
+          const isStudent = studentOrAlumniText !== '' && 
+            (studentOrAlumniText.includes('student') || 
+             studentOrAlumniText.includes('alum') || 
+             studentOrAlumniText.includes('university') ||
+             studentOrAlumniText.includes('college') ||
+             studentOrAlumniText.includes('school'));
+          
           return {
             id: profile.id,
             full_name: profile.full_name,
             email: profile.email,
-            is_student: submission?.student_or_alumni ? submission.student_or_alumni.trim() !== '' : false,
-            dei_preference: submission?.diversity_equity_inclusion || false,
-            green_banking_interest: submission?.environmental_initiatives || false
+            is_student: isStudent,
+            dei_preference: submission?.diversity_equity_inclusion === true,
+            green_banking_interest: submission?.environmental_initiatives === true
           };
         }) || [];
 
