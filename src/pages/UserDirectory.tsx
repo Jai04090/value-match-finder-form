@@ -70,19 +70,41 @@ const UserDirectory: React.FC = () => {
 
         if (usersError) throw usersError;
 
-        // Load form submissions with preferences - join by user_id
+        // Load form submissions with preferences - order by created_at DESC to get most recent
         const { data: formSubmissions, error: formsError } = await supabase
           .from('form_submissions')
-          .select('user_id, email, student_or_alumni, diversity_equity_inclusion, environmental_initiatives');
+          .select('user_id, email, student_or_alumni, diversity_equity_inclusion, environmental_initiatives, created_at')
+          .order('created_at', { ascending: false });
 
         if (formsError) throw formsError;
+
+        console.log('Form submissions loaded:', formSubmissions?.length);
+        console.log('Sample form submission:', formSubmissions?.[0]);
+
+        // Create a map to store the most recent submission for each user
+        const userSubmissionMap = new Map();
+        
+        formSubmissions?.forEach(submission => {
+          const userId = submission.user_id;
+          const email = submission.email;
+          
+          // For submissions with user_id, use that as key
+          if (userId && !userSubmissionMap.has(userId)) {
+            userSubmissionMap.set(userId, submission);
+          }
+          
+          // For submissions without user_id but with email, use email as fallback
+          if (!userId && email && !userSubmissionMap.has(email)) {
+            userSubmissionMap.set(email, submission);
+          }
+        });
+
+        console.log('User submission map:', userSubmissionMap);
 
         // Merge the data by user_id first, then fallback to email
         const usersWithPreferences = userProfiles?.map(profile => {
           // Try to find submission by user_id first, then by email
-          const submission = formSubmissions?.find(sub => 
-            sub.user_id === profile.id || sub.email === profile.email
-          );
+          const submission = userSubmissionMap.get(profile.id) || userSubmissionMap.get(profile.email);
           
           // Check if user is a student or alumni based on their response
           const studentOrAlumniText = submission?.student_or_alumni?.toLowerCase().trim() || '';
