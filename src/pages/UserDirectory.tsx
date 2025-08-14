@@ -62,28 +62,27 @@ const UserDirectory: React.FC = () => {
           return;
         }
 
-        // Load user profiles with form submissions joined by user_id
+        // Load user profiles
         const { data: userProfiles, error: usersError } = await supabase
           .from('profiles')
-          .select(`
-            id, 
-            full_name, 
-            email,
-            form_submissions (
-              student_or_alumni,
-              diversity_equity_inclusion,
-              environmental_initiatives
-            )
-          `)
+          .select('id, full_name, email')
           .eq('role', 'user');
 
         if (usersError) throw usersError;
 
-        // Merge the data
+        // Load form submissions with preferences - join by user_id
+        const { data: formSubmissions, error: formsError } = await supabase
+          .from('form_submissions')
+          .select('user_id, email, student_or_alumni, diversity_equity_inclusion, environmental_initiatives');
+
+        if (formsError) throw formsError;
+
+        // Merge the data by user_id first, then fallback to email
         const usersWithPreferences = userProfiles?.map(profile => {
-          // Get the most recent form submission for this user
-          const submissions = profile.form_submissions || [];
-          const submission = submissions.length > 0 ? submissions[0] : null;
+          // Try to find submission by user_id first, then by email
+          const submission = formSubmissions?.find(sub => 
+            sub.user_id === profile.id || sub.email === profile.email
+          );
           
           // Check if user is a student or alumni based on their response
           const studentOrAlumniText = submission?.student_or_alumni?.toLowerCase().trim() || '';
