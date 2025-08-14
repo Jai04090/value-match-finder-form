@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TemplatedSendOfferModal } from '@/components/institution/TemplatedSendOfferModal';
 import BulkOfferModal from '@/components/institution/BulkOfferModal';
 import { Building2, LogOut, Users, Filter, Mail, BarChart3, Send } from 'lucide-react';
@@ -19,6 +20,12 @@ interface UserProfile {
   is_student: boolean;
   green_banking_interest: boolean;
   dei_preference: boolean;
+  religion: string | null;
+  sharia_compliant: boolean;
+  military_service: boolean;
+  military_branch: string | null;
+  looking_for: string | null;
+  current_financial_institution: string | null;
 }
 
 const UserDirectory: React.FC = () => {
@@ -39,6 +46,10 @@ const UserDirectory: React.FC = () => {
   const [showStudentsOnly, setShowStudentsOnly] = useState(false);
   const [showDEIOnly, setShowDEIOnly] = useState(false);
   const [showGreenBankingOnly, setShowGreenBankingOnly] = useState(false);
+  const [showShariaCompliantOnly, setShowShariaCompliantOnly] = useState(false);
+  const [showMilitaryOnly, setShowMilitaryOnly] = useState(false);
+  const [selectedLookingFor, setSelectedLookingFor] = useState<string>('');
+  const [selectedReligion, setSelectedReligion] = useState<string>('');
 
   useEffect(() => {
     if (!user) return;
@@ -73,7 +84,7 @@ const UserDirectory: React.FC = () => {
         // Load form submissions with preferences
         const { data: formSubmissions, error: formsError } = await supabase
           .from('form_submissions')
-          .select('email, student_or_alumni, diversity_equity_inclusion, environmental_initiatives');
+          .select('email, student_or_alumni, diversity_equity_inclusion, environmental_initiatives, religion, sharia_compliant, current_or_former_military, military_branch, looking_for, current_financial_institution');
 
         if (formsError) throw formsError;
 
@@ -86,7 +97,13 @@ const UserDirectory: React.FC = () => {
             email: profile.email,
             is_student: submission?.student_or_alumni ? submission.student_or_alumni.trim() !== '' : false,
             dei_preference: submission?.diversity_equity_inclusion || false,
-            green_banking_interest: submission?.environmental_initiatives || false
+            green_banking_interest: submission?.environmental_initiatives || false,
+            religion: submission?.religion || null,
+            sharia_compliant: submission?.sharia_compliant || false,
+            military_service: submission?.current_or_former_military ? submission.current_or_former_military.trim() !== '' : false,
+            military_branch: submission?.military_branch || null,
+            looking_for: submission?.looking_for || null,
+            current_financial_institution: submission?.current_financial_institution || null
           };
         }) || [];
 
@@ -116,8 +133,24 @@ const UserDirectory: React.FC = () => {
       filtered = filtered.filter(user => user.green_banking_interest);
     }
 
+    if (showShariaCompliantOnly) {
+      filtered = filtered.filter(user => user.sharia_compliant);
+    }
+
+    if (showMilitaryOnly) {
+      filtered = filtered.filter(user => user.military_service);
+    }
+
+    if (selectedLookingFor) {
+      filtered = filtered.filter(user => user.looking_for === selectedLookingFor);
+    }
+
+    if (selectedReligion) {
+      filtered = filtered.filter(user => user.religion === selectedReligion);
+    }
+
     setFilteredUsers(filtered);
-  }, [users, showStudentsOnly, showDEIOnly, showGreenBankingOnly]);
+  }, [users, showStudentsOnly, showDEIOnly, showGreenBankingOnly, showShariaCompliantOnly, showMilitaryOnly, selectedLookingFor, selectedReligion]);
 
   const handleLogout = async () => {
     try {
@@ -253,6 +286,8 @@ const UserDirectory: React.FC = () => {
                     <Filter className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium text-foreground">Filters:</span>
                   </div>
+                  
+                  {/* Checkbox Filters */}
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id="students"
@@ -260,7 +295,7 @@ const UserDirectory: React.FC = () => {
                       onCheckedChange={(checked) => setShowStudentsOnly(checked === true)}
                     />
                     <label htmlFor="students" className="text-sm text-foreground">
-                      Students Only
+                      Students
                     </label>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -270,7 +305,7 @@ const UserDirectory: React.FC = () => {
                       onCheckedChange={(checked) => setShowDEIOnly(checked === true)}
                     />
                     <label htmlFor="dei" className="text-sm text-foreground">
-                      DEI Preference
+                      DEI Interest
                     </label>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -280,8 +315,65 @@ const UserDirectory: React.FC = () => {
                       onCheckedChange={(checked) => setShowGreenBankingOnly(checked === true)}
                     />
                     <label htmlFor="green" className="text-sm text-foreground">
-                      Green Banking Interest
+                      Green Banking
                     </label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="sharia"
+                      checked={showShariaCompliantOnly}
+                      onCheckedChange={(checked) => setShowShariaCompliantOnly(checked === true)}
+                    />
+                    <label htmlFor="sharia" className="text-sm text-foreground">
+                      Sharia Compliant
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="military"
+                      checked={showMilitaryOnly}
+                      onCheckedChange={(checked) => setShowMilitaryOnly(checked === true)}
+                    />
+                    <label htmlFor="military" className="text-sm text-foreground">
+                      Military Service
+                    </label>
+                  </div>
+                  
+                  {/* Dropdown Filters */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-foreground">Looking for:</span>
+                    <Select value={selectedLookingFor} onValueChange={setSelectedLookingFor}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">All</SelectItem>
+                        <SelectItem value="Checking Account">Checking Account</SelectItem>
+                        <SelectItem value="Savings Account">Savings Account</SelectItem>
+                        <SelectItem value="Credit Card">Credit Card</SelectItem>
+                        <SelectItem value="Loan">Loan</SelectItem>
+                        <SelectItem value="Mortgage">Mortgage</SelectItem>
+                        <SelectItem value="Investment Services">Investment Services</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-foreground">Religion:</span>
+                    <Select value={selectedReligion} onValueChange={setSelectedReligion}>
+                      <SelectTrigger className="w-32">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">All</SelectItem>
+                        <SelectItem value="Christianity">Christianity</SelectItem>
+                        <SelectItem value="Islam">Islam</SelectItem>
+                        <SelectItem value="Judaism">Judaism</SelectItem>
+                        <SelectItem value="Buddhism">Buddhism</SelectItem>
+                        <SelectItem value="Hinduism">Hinduism</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 
@@ -326,7 +418,10 @@ const UserDirectory: React.FC = () => {
                       <th className="text-left p-3 font-medium text-foreground">Email</th>
                       <th className="text-center p-3 font-medium text-foreground">Student</th>
                       <th className="text-center p-3 font-medium text-foreground">DEI</th>
-                      <th className="text-center p-3 font-medium text-foreground">Green Banking</th>
+                      <th className="text-center p-3 font-medium text-foreground">Green</th>
+                      <th className="text-center p-3 font-medium text-foreground">Sharia</th>
+                      <th className="text-center p-3 font-medium text-foreground">Military</th>
+                      <th className="text-center p-3 font-medium text-foreground">Looking For</th>
                       <th className="text-left p-3 font-medium text-foreground">Actions</th>
                     </tr>
                   </thead>
@@ -362,6 +457,27 @@ const UserDirectory: React.FC = () => {
                         <td className="p-3 text-center">
                           {user.green_banking_interest ? (
                             <Badge variant="secondary" className="text-xs">✓</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-center">
+                          {user.sharia_compliant ? (
+                            <Badge variant="secondary" className="text-xs">✓</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-center">
+                          {user.military_service ? (
+                            <Badge variant="secondary" className="text-xs">✓</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-center">
+                          {user.looking_for ? (
+                            <Badge variant="outline" className="text-xs">{user.looking_for}</Badge>
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}
